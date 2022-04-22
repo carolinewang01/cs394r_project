@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 import gym
 import numpy as np
 import torch
-from atari_network import DQN
+from atari_network import DQN, MLP
 from pettingzoo.classic import tictactoe_v3
 from torch.utils.tensorboard import SummaryWriter
 
@@ -118,7 +118,7 @@ def get_agents(
     args.action_shape = env.action_space.shape or env.action_space.n
     if agent_learn is None:
         # define model
-        feature_net = DQN(
+        feature_net = MLP(
             *args.state_shape, args.action_shape, args.device, features_only=True
         )
         net = ImplicitQuantileNetwork(

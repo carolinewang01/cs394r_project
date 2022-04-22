@@ -31,12 +31,12 @@ class DQN(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1), nn.ReLU(inplace=True),
             nn.Flatten()
         )
-        self.net = nn.Sequential(
-            nn.Conv2d(c, 32, kernel_size=2, stride=1), nn.ReLU(inplace=True),
-            nn.Conv2d(32, 64, kernel_size=1, stride=1), nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=1, stride=1), nn.ReLU(inplace=True),
-            nn.Flatten()
-        )
+        #self.net = nn.Sequential(
+        #    nn.Conv2d(c, 32, kernel_size=2, stride=1), nn.ReLU(inplace=True),
+        #    nn.Conv2d(32, 64, kernel_size=1, stride=1), nn.ReLU(inplace=True),
+        #    nn.Conv2d(64, 64, kernel_size=1, stride=1), nn.ReLU(inplace=True),
+        #    nn.Flatten()
+        #)
 
         with torch.no_grad():
             self.output_dim = np.prod(self.net(torch.zeros(1, c, h, w)).shape[1:])
@@ -77,11 +77,11 @@ class MLP(nn.Module):
         self.device = device
         self.net = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(c, 128), nn.ReLU(inplace=True),
+            nn.Linear(c*h*w, 128), nn.ReLU(inplace=True),
             nn.Linear(128, 128), nn.ReLU(inplace=True),
             nn.Linear(128, 128), nn.ReLU(inplace=True),
         )
-
+        print(c,h,w)
         with torch.no_grad():
             self.output_dim = np.prod(self.net(torch.zeros(1, c, h, w)).shape[1:])
         if not features_only:
