@@ -47,7 +47,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('--num-cosines', type=int, default=64)
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
-    parser.add_argument('--epoch', type=int, default=20)
+    parser.add_argument('--epoch', type=int, default=10)
     parser.add_argument('--step-per-epoch', type=int, default=1000)
     parser.add_argument('--step-per-collect', type=int, default=10)
     parser.add_argument('--update-per-step', type=float, default=0.1)
@@ -148,9 +148,8 @@ def get_agents(
             agent_opponent = deepcopy(agent_learn)
             agent_opponent.load_state_dict(torch.load(args.opponent_path))
         else:
-            #agent_opponent = RandomPolicy()
             agent_opponent = deepcopy(agent_learn)
-
+    
     if args.agent_id == 1:
         agents = [agent_learn, agent_opponent]
     else:
@@ -174,9 +173,10 @@ def train_agent(
     train_envs.seed(args.seed)
     test_envs.seed(args.seed)
 
+    #policy, optim, agents = get_agents(
+    #    args, agent_learn=agent_learn, agent_opponent=RandomPolicy(), optim=optim)
     policy, optim, agents = get_agents(
-        args, agent_learn=agent_learn, agent_opponent=agent_opponent, optim=optim
-    )
+        args, agent_learn=agent_learn, agent_opponent=agent_opponent, optim=optim)
 
     # collector
     train_collector = Collector(
@@ -195,6 +195,7 @@ def train_agent(
     logger = TensorboardLogger(writer)
 
     def save_best_fn(policy):
+        '''
         if hasattr(args, 'model_save_path'):
             model_save_path = args.model_save_path
         else:
@@ -204,6 +205,8 @@ def train_agent(
         torch.save(
             policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path
         )
+        '''
+        return None
 
     def stop_fn(mean_rewards):
         #return mean_rewards >= args.win_rate
@@ -213,7 +216,8 @@ def train_agent(
         #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_train)
         return [policy.policies[agents[x]].set_eps(args.eps_train) for x in range(2)]
     def test_fn(epoch, env_step):
-        policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
+        #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
+        return [policy.policies[agents[x]].set_eps(args.eps_test) for x in range(2)]
 
     def reward_metric(rews):
         return rews[:, args.agent_id - 1]
@@ -246,13 +250,13 @@ def watch(
     agent_learn: Optional[BasePolicy] = None,
     agent_opponent: Optional[BasePolicy] = None,
 ) -> None:
-    env = DummyVectorEnv([get_env for _ in range(1)])
+    env = DummyVectorEnv([get_env for _ in range(10)])
     policy, optim, agents = get_agents(
-        args, agent_learn=agent_learn, agent_opponent=agent_opponent
+        args, agent_learn=agent_learn, agent_opponent=RandomPolicy()
     )
     policy.eval()
     policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
     collector = Collector(policy, env, exploration_noise=True)
-    result = collector.collect(n_episode=100, render=args.render)
+    result = collector.collect(n_episode=1000, render=args.render)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")

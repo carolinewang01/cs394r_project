@@ -14,7 +14,7 @@ def test_tic_tac_toe(args=get_args()):
     if __name__ == '__main__':
         pprint.pprint(result)
         # Let's watch its performance!
-        watch(args, agent)
+        watch(args, agent_learn=agent)
 
 
 if __name__ == '__main__':
