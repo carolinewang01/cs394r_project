@@ -1,6 +1,10 @@
 from typing import Any, Dict, Optional, Union
-from tianshou.policy import IQNPolicy
+from tianshou.data import Batch, to_numpy
 
+import numpy as np
+import torch
+
+from tianshou.policy import IQNPolicy
 
 
 class RiskAwareIQNPolicy(IQNPolicy):

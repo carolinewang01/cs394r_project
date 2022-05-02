@@ -24,10 +24,9 @@ from tianshou.utils import TensorboardLogger
 # from tianshou.utils.net.common import Net
 
 # ours
-from models.atari_network import DQN, MLP
+from models import DQN, MLP
 from models import RiskAwareIQN
-from policies import RiskAwareIQNPolicy, RiskAwareMAPolicyManager
-from policies.agent_pool import AgentPool
+from policies import RiskAwareIQNPolicy, AgentPool
 
 
 def get_env():
@@ -235,6 +234,7 @@ def train_agent(
         else:
             opponent_eps = args.eps_train
         return [policy.policies[agents[x]].set_eps(args.eps_train) if x==args.agent_id-1 else policy.policies[agents[x]].set_eps(opponent_eps) for x in range(2)]
+    
     def test_fn(epoch, env_step):
         #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
         return [policy.policies[agents[x]].set_eps(args.eps_test) if x==args.agent_id-1 else policy.policies[agents[x]].set_eps(1) for x in range(2)]
