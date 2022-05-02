@@ -1,10 +1,19 @@
 import random
 import numpy as np
+from tianshou.data import Batch
 from tianshou.policy import BasePolicy
+from typing import Any, Dict, Optional, Union
+try:
+    from tianshou.env.pettingzoo_env import PettingZooEnv
+except ImportError:
+    PettingZooEnv = None  # type: ignore
 
 class AgentPool(BasePolicy):
     def __init__(self,
-                 max_len=10):
+                 env: PettingZooEnv,
+                 max_len=10,
+                 **kwargs: Any):
+        super().__init__(action_space=env.action_space, **kwargs)
         self.policies = []
         self.len = 0
         self.max_len = max_len
@@ -25,8 +34,6 @@ class AgentPool(BasePolicy):
             self,
             batch: Batch,
             state: Optional[Union[dict, Batch, np.ndarray]] = None,
-            model: str = "model",
-            input: str = "obs",
             **kwargs: Any,
             ) -> Batch:
         """
@@ -38,12 +45,10 @@ class AgentPool(BasePolicy):
             """
             Randomly select a policy and act
             """
-            sampled_policy = self.policies[random.randint(0,len(self.policies))]
+            sampled_policy = self.policies[random.randint(0,len(self.policies)-1)]
             return sampled_policy(
                                     batch, 
                                     state, 
-                                    model, 
-                                    input, 
                                     **kwargs)
         else:
             """
@@ -53,11 +58,17 @@ class AgentPool(BasePolicy):
             logits = np.random.rand(*mask.shape)
             logits[~mask] = -np.inf
             return Batch(act=logits.argmax(axis=-1)) 
-    
+     
     def learn(self, batch: Batch, **kwargs: Any) -> Dict[str, float]:
         """Since an agent pool does not update, it returns an empty dict."""
         return {}
     
+    def set_eps(self, eps):
+        """
+        TODO do something
+        """
+        pass
+
     def sample(self):
         """
         Select and return policy from agent pool
