@@ -17,6 +17,7 @@ class AgentPool(BasePolicy):
         self.policies = []
         self.len = 0
         self.max_len = max_len
+        self.eps = 0.0
 
     def __len__(self):
         return self.len
@@ -41,7 +42,7 @@ class AgentPool(BasePolicy):
         If the size of the pool is greater than zero, return a uniformly sampled joint policy
         Else return a random policy
         """
-        if self.len>0:
+        if self.len>0 and self.eps!=1.0:
             """
             Randomly select a policy and act
             """
@@ -67,7 +68,7 @@ class AgentPool(BasePolicy):
         """
         TODO do something
         """
-        pass
+        self.eps = eps
 
     def sample(self):
         """
