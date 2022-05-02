@@ -157,6 +157,10 @@ def get_agents(
     # opponent is assumed to be an agent pool, if the agent pool is none, then initialize an opponent
     if type(agent_opponent) == type(RandomPolicy()):
         agent_opponent = RandomPolicy()
+    elif args.opponent_path:
+        print("Loading Opponent from {}".format(args.opponent_path))
+        agent_opponent = deepcopy(agent_learn)
+        agent_opponent.load_state_dict(torch.load(args.opponent_path))
     elif len(agent_opponent) == 0:
         agent_opponent = deepcopy(agent_learn)
 
@@ -234,7 +238,7 @@ def train_agent(
         return [policy.policies[agents[x]].set_eps(args.eps_train) if x==args.agent_id-1 else policy.policies[agents[x]].set_eps(opponent_eps) for x in range(2)]
     def test_fn(epoch, env_step):
         #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
-        return [policy.policies[agents[x]].set_eps(args.eps_test) if x==args.agent_id-1 else policy.policies[agents[x]].set_eps(1) for x in range(2)]
+        return [policy.policies[agents[x]].set_eps(args.eps_test) if x==args.agent_id-1 else policy.policies[agents[x]].set_eps(1.0) for x in range(2)]
 
     def reward_metric(rews):
         return rews[:, args.agent_id - 1]
@@ -259,7 +263,7 @@ def train_agent(
         reward_metric=reward_metric
     )
 
-    return result, policy.policies[agents[args.agent_id - 1]]
+    return result, policy.policies[agents[args.agent_id - 1]], log_path
 
 def train_selfplay(
     args: argparse.Namespace = get_args(),
@@ -269,11 +273,15 @@ def train_selfplay(
     ) -> Tuple[dict, BasePolicy]:
     env=get_env() 
     agent_opponent = AgentPool(env)
-    for i in range(10):
+    for i in range(3):
         print(i+1,"-th iteration in selfplay training")
-        result, policy = train_agent(args, agent_learn = agent_learn, agent_opponent = agent_opponent)
+        result, policy, log_path = train_agent(args, agent_learn = agent_learn, agent_opponent = agent_opponent)
         agent_opponent.add(policy)
+        best_path = os.path.join(log_path,'policy.pth')
+        print("loading best policy from previous iteration:", best_path)
         agent_learn = policy
+        agent_learn.load_state_dict(torch.load(best_path))
+        watch(args, agent_learn=agent_learn, agent_opponent=RandomPolicy())
     return result, policy
 
 def watch(
@@ -283,13 +291,15 @@ def watch(
 ) -> None:
     env = DummyVectorEnv([get_env for _ in range(10)])
     if args.watch:
-        policy, optim, agents = get_agents(
-            args, agent_learn=agent_learn, agent_opponent=agent_opponent
-        )
         if args.random:
             policy, optim, agents = get_agents(
                 args, agent_learn=agent_learn, agent_opponent=RandomPolicy()
             )
+        else:
+            policy, optim, agents = get_agents(
+                args, agent_learn=agent_learn, agent_opponent=agent_opponent
+            )
+
     else:
         policy, optim, agents = get_agents(
             args, agent_learn=agent_learn, agent_opponent=RandomPolicy()
