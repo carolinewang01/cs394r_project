@@ -6,9 +6,9 @@ from typing import Optional, Tuple
 import gym
 import numpy as np
 import torch
-from models.atari_network import DQN, MLP
-from pettingzoo.classic import tictactoe_v3
+
 from torch.utils.tensorboard import SummaryWriter
+from pettingzoo.classic import tictactoe_v3
 
 from tianshou.data import Collector, VectorReplayBuffer
 from tianshou.env import DummyVectorEnv
@@ -16,14 +16,17 @@ from tianshou.env.pettingzoo_env import PettingZooEnv
 from tianshou.policy import (
     BasePolicy,
     DQNPolicy,
-    IQNPolicy,
     MultiAgentPolicyManager,
     RandomPolicy,
 )
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger
-from tianshou.utils.net.common import Net
-from tianshou.utils.net.discrete import ImplicitQuantileNetwork
+# from tianshou.utils.net.common import Net
+
+# ours
+from models.atari_network import DQN, MLP
+from models import RiskAwareIQN
+from policies import RiskAwareIQNPolicy, RiskAwareMAPolicyManager
 from policies.agent_pool import AgentPool
 
 
@@ -123,7 +126,7 @@ def get_agents(
         feature_net = MLP(
             *args.state_shape, args.action_shape, args.device, features_only=True
         )
-        net = ImplicitQuantileNetwork(
+        net = RiskAwareIQN(
             feature_net,
             args.action_shape,
             args.hidden_sizes,
@@ -132,7 +135,7 @@ def get_agents(
         ).to(args.device)
         if optim is None:
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
-        agent_learn = IQNPolicy(
+        agent_learn = RiskAwareIQNPolicy(
             net,
             optim,
             args.gamma,
