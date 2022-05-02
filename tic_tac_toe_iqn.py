@@ -6,8 +6,8 @@ from typing import Optional, Tuple
 import gym
 import numpy as np
 import torch
+
 from torch.utils.tensorboard import SummaryWriter
-from atari_network import DQN, MLP
 from pettingzoo.classic import tictactoe_v3
 
 from tianshou.data import Collector, VectorReplayBuffer
@@ -21,11 +21,13 @@ from tianshou.policy import (
 )
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger
-from tianshou.utils.net.common import Net
+# from tianshou.utils.net.common import Net
 
 # ours
+from models.atari_network import DQN, MLP
 from models import RiskAwareIQN
 from policies import RiskAwareIQNPolicy, RiskAwareMAPolicyManager
+from policies.agent_pool import AgentPool
 
 
 def get_env():
@@ -35,6 +37,7 @@ def get_env():
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1626)
+    parser.add_argument('--random', action="store_true", help="turn on to train against random agents")
     parser.add_argument('--eps-test', type=float, default=0.05)
     parser.add_argument('--eps-train', type=float, default=0.1)
     parser.add_argument('--buffer-size', type=int, default=20000)
@@ -49,6 +52,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
     parser.add_argument('--epoch', type=int, default=10)
+    parser.add_argument('--n-eval-episode', type=int, default=10)
     parser.add_argument('--step-per-epoch', type=int, default=1000)
     parser.add_argument('--step-per-collect', type=int, default=10)
     parser.add_argument('--update-per-step', type=float, default=0.1)
@@ -57,7 +61,7 @@ def get_parser() -> argparse.ArgumentParser:
         '--hidden-sizes', type=int, nargs='*', default=[128, 128, 128, 128]
     )
     parser.add_argument('--training-num', type=int, default=10)
-    parser.add_argument('--test-num', type=int, default=10)
+    parser.add_argument('--test-num', type=int, default=100)
     parser.add_argument('--logdir', type=str, default='log')
     parser.add_argument('--render', type=float, default=0.1)
     parser.add_argument(
@@ -142,20 +146,28 @@ def get_agents(
             target_update_freq=args.target_update_freq
         )
         if args.resume_path:
+            print("Loading Agent from {}".format(args.resume_path))
             agent_learn.load_state_dict(torch.load(args.resume_path))
-
+    """
     if agent_opponent is None:
         if args.opponent_path:
+            print("Loading Opponent from {}".format(args.opponent_path))
             agent_opponent = deepcopy(agent_learn)
             agent_opponent.load_state_dict(torch.load(args.opponent_path))
         else:
             agent_opponent = deepcopy(agent_learn)
-    
+    """
+    # opponent is assumed to be an agent pool, if the agent pool is none, then initialize an opponent
+    if type(agent_opponent) == type(RandomPolicy()):
+        agent_opponent = RandomPolicy()
+    elif len(agent_opponent) == 0:
+        agent_opponent = deepcopy(agent_learn)
+
     if args.agent_id == 1:
         agents = [agent_learn, agent_opponent]
     else:
         agents = [agent_opponent, agent_learn]
-    policy = RiskAwareMAPolicyManager(agents, env)
+    policy = MultiAgentPolicyManager(agents, env)
     return policy, optim, env.agents
 
 
@@ -190,23 +202,26 @@ def train_agent(
     # policy.set_eps(1)
     train_collector.collect(n_step=args.batch_size * args.training_num)
     # log
-    log_path = os.path.join(args.logdir, 'tic_tac_toe', 'iqn')
+    exp_name = 'iqn'
+    if args.random:
+        exp_name += '-random'
+    else:
+        exp_name += '-self'
+    log_path = os.path.join(args.logdir, 'tic_tac_toe', exp_name)
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
 
     def save_best_fn(policy):
-        '''
         if hasattr(args, 'model_save_path'):
             model_save_path = args.model_save_path
         else:
             model_save_path = os.path.join(
-                args.logdir, 'tic_tac_toe', 'iqn', 'policy.pth'
+                args.logdir, 'tic_tac_toe', exp_name, 'policy.pth'
             )
         torch.save(
             policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path
         )
-        '''
         return None
 
     def stop_fn(mean_rewards):
@@ -215,10 +230,14 @@ def train_agent(
 
     def train_fn(epoch, env_step):
         #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_train)
-        return [policy.policies[agents[x]].set_eps(args.eps_train) for x in range(2)]
+        if args.random:
+            opponent_eps = 1.0
+        else:
+            opponent_eps = args.eps_train
+        return [policy.policies[agents[x]].set_eps(args.eps_train) if x==args.agent_id-1 else policy.policies[agents[x]].set_eps(opponent_eps) for x in range(2)]
     def test_fn(epoch, env_step):
         #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
-        return [policy.policies[agents[x]].set_eps(args.eps_test) for x in range(2)]
+        return [policy.policies[agents[x]].set_eps(args.eps_test) if x==args.agent_id-1 else policy.policies[agents[x]].set_eps(1) for x in range(2)]
 
     def reward_metric(rews):
         return rews[:, args.agent_id - 1]
@@ -245,6 +264,20 @@ def train_agent(
 
     return result, policy.policies[agents[args.agent_id - 1]]
 
+def train_selfplay(
+    args: argparse.Namespace = get_args(),
+    agent_learn: Optional[BasePolicy] = None,
+    agent_opponent: Optional[BasePolicy] = None,
+    optim: Optional[torch.optim.Optimizer] = None,
+    ) -> Tuple[dict, BasePolicy]:
+    env=get_env() 
+    agent_opponent = AgentPool(env)
+    for i in range(10):
+        print(i+1,"-th iteration in selfplay training")
+        result, policy = train_agent(args, agent_learn = agent_learn, agent_opponent = agent_opponent)
+        agent_opponent.add(policy)
+        agent_learn = policy
+    return result, policy
 
 def watch(
     args: argparse.Namespace = get_args(),
@@ -252,12 +285,21 @@ def watch(
     agent_opponent: Optional[BasePolicy] = None,
 ) -> None:
     env = DummyVectorEnv([get_env for _ in range(10)])
-    policy, optim, agents = get_agents(
-        args, agent_learn=agent_learn, agent_opponent=RandomPolicy()
-    )
+    if args.watch:
+        policy, optim, agents = get_agents(
+            args, agent_learn=agent_learn, agent_opponent=agent_opponent
+        )
+        if args.random:
+            policy, optim, agents = get_agents(
+                args, agent_learn=agent_learn, agent_opponent=RandomPolicy()
+            )
+    else:
+        policy, optim, agents = get_agents(
+            args, agent_learn=agent_learn, agent_opponent=RandomPolicy()
+        )
     policy.eval()
     policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
     collector = Collector(policy, env, exploration_noise=True)
-    result = collector.collect(n_episode=1000, render=args.render)
+    result = collector.collect(n_episode=args.n_eval_episode, render=args.render)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
