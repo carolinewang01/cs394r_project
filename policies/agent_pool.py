@@ -12,12 +12,15 @@ class AgentPool(BasePolicy):
     def __init__(self,
                  env: PettingZooEnv,
                  max_len=10,
+                 risk_aware=False,
                  **kwargs: Any):
         super().__init__(action_space=env.action_space, **kwargs)
         self.policies = []
         self.len = 0
         self.max_len = max_len
         self.eps = 0.0
+
+        self.risk_aware = risk_aware
 
     def __len__(self):
         return self.len
@@ -47,10 +50,12 @@ class AgentPool(BasePolicy):
             Randomly select a policy and act
             """
             sampled_policy = self.policies[random.randint(0,len(self.policies)-1)]
-            return sampled_policy(
-                                    batch, 
-                                    state, 
-                                    **kwargs)
+            if self.risk_aware:
+                sampled_policy.model.cvar_eta = random.uniform(0, 1) 
+            return sampled_policy(batch, 
+                                  state, 
+                                  risk_aware=self.risk_aware,
+                                  **kwargs)
         else:
             """
             Randomly Policy

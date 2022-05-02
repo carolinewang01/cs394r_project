@@ -10,11 +10,9 @@ def test_tic_tac_toe(args=get_args()):
     #result, agent = train_agent(args)
     result, agent = train_selfplay(args)
     #assert result["best_reward"] >= args.win_rate
-
+    print("Result dictionary from last iteration of self-play.")
     pprint.pprint(result)
-    # Let's watch its performance!
-    watch(args, agent_learn=agent)
-
+    # watch(args, agent_learn=agent)
 
 if __name__ == '__main__':
     test_tic_tac_toe(get_args())

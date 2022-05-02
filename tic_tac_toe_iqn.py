@@ -275,10 +275,10 @@ def train_selfplay(
     optim: Optional[torch.optim.Optimizer] = None,
     ) -> Tuple[dict, BasePolicy]:
     env=get_env() 
-    agent_opponent = AgentPool(env)
+    agent_opponent = AgentPool(env, risk_aware=False)
     for i in range(3):
         print(i+1,"-th iteration in selfplay training")
-        result, policy, log_path = train_agent(args, agent_learn = agent_learn, agent_opponent = agent_opponent)
+        result, policy, log_path = train_agent(args, agent_learn=agent_learn, agent_opponent=agent_opponent)
         agent_opponent.add(policy)
         best_path = os.path.join(log_path,'policy.pth')
         print("loading best policy from previous iteration:", best_path)
