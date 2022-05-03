@@ -1,8 +1,10 @@
 import pprint
-from tic_tac_toe_iqn import get_args, train_agent, train_selfplay, watch
 
 
-def test_tic_tac_toe(args=get_args()):
+def test_tic_tac_toe():
+    from tic_tac_toe_iqn_self_play import get_args, train_agent, train_selfplay, watch
+    args = get_args()
+
     if args.watch:
         watch(args)
         return
@@ -14,5 +16,18 @@ def test_tic_tac_toe(args=get_args()):
     pprint.pprint(result)
     # watch(args, agent_learn=agent)
 
+def test_leduc():
+    from leduc_iqn_random import get_args, train_agent, watch
+
+    args=get_args()
+
+    if args.watch:
+        watch(args)
+        return
+
+    result, agent = train_agent(args)
+    pprint.pprint(result)
+
 if __name__ == '__main__':
-    test_tic_tac_toe(get_args())
+    # test_tic_tac_toe()
+    test_leduc()
