@@ -279,6 +279,7 @@ def train_selfplay(
     for i in range(3):
         print(i+1,"-th iteration in selfplay training")
         result, policy, log_path = train_agent(args, agent_learn=agent_learn, agent_opponent=agent_opponent)
+        # las policy 
         agent_opponent.add(policy)
         best_path = os.path.join(log_path,'policy.pth')
         print("loading best policy from previous iteration:", best_path)

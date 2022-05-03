@@ -45,6 +45,7 @@ class AgentPool(BasePolicy):
         If the size of the pool is greater than zero, return a uniformly sampled joint policy
         Else return a random policy
         """
+        print("FORWARD OF AGENT POOL")
         if self.len>0 and self.eps!=1.0:
             """
             Randomly select a policy and act
