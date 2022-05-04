@@ -6,7 +6,6 @@ import torch
 
 from tianshou.policy import IQNPolicy
 
-
 class RiskAwareIQNPolicy(IQNPolicy):
     def __init__(
         self,
