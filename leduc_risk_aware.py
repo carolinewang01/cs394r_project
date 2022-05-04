@@ -12,19 +12,15 @@ from torch.utils.tensorboard import SummaryWriter
 from tianshou.data import Collector, VectorReplayBuffer
 from tianshou.env import DummyVectorEnv
 from tianshou.env.pettingzoo_env import PettingZooEnv
-from tianshou.policy import (
-    BasePolicy,
-    DQNPolicy,
-    MultiAgentPolicyManager,
-    RandomPolicy,
-)
+
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger
+from tianshou.utils.net.common import Net
+from tianshou.policy import BasePolicy
 
 # ours
-from models import DQN, MLP
-from models import RiskAwareIQN
-from policies import RiskAwareIQNPolicy
+# from models import DQN, MLP, 
+from policies import CustomMAPolicyManager
 from make_agents import create_iqn_agent, create_dqn_agent
 
 
@@ -34,8 +30,19 @@ def get_env():
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
+
+    #### MUST SPECIFY ####
+    parser.add_argument('--agent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
+    parser.add_argument('--cvar_eta', type=int, default=1.0, help='cvar eta param of opponent IQN agent')
+    parser.add_argument(
+        '--opponent-resume-path',
+        type=str,
+        default='',
+        help='the path of opponent agent pth file '
+        'for resuming from a pre-trained agent'
+    )
+    ######################
     parser.add_argument('--seed', type=int, default=1626)
-    parser.add_argument('--random', action="store_true", help="turn on to train against random agents")
     parser.add_argument('--eps-test', type=float, default=0.05)
     parser.add_argument('--eps-train', type=float, default=0.1)
     parser.add_argument('--buffer-size', type=int, default=20000)
@@ -43,6 +50,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--gamma', type=float, default=0.9, help='a smaller gamma favors earlier win'
     )
+
+    # iqn args
     parser.add_argument('--sample-size', type=int, default=32)
     parser.add_argument('--online-sample-size', type=int, default=8)
     parser.add_argument('--target-sample-size', type=int, default=8)
@@ -83,20 +92,6 @@ def get_parser() -> argparse.ArgumentParser:
         ' agent_id-th player. Choices are 1 and 2.'
     )
     parser.add_argument(
-        '--resume-path',
-        type=str,
-        default='',
-        help='the path of agent pth file '
-        'for resuming from a pre-trained agent'
-    )
-    parser.add_argument(
-        '--opponent-path',
-        type=str,
-        default='',
-        help='the path of opponent agent pth file '
-        'for resuming from a pre-trained agent'
-    )
-    parser.add_argument(
         '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu'
     )
     return parser
@@ -105,7 +100,6 @@ def get_parser() -> argparse.ArgumentParser:
 def get_args() -> argparse.Namespace:
     parser = get_parser()
     return parser.parse_known_args()[0]
-
 
 def get_agents(
     args: argparse.Namespace = get_args(),
@@ -124,46 +118,24 @@ def get_agents(
         # args.state_shape += (1,)
 
     if agent_learn is None:
-        # define model
-        agent_learn, optim = create_iqn_agent(args, cvar_eta=1.0)
-        # agent_learn
-        # feature_net = MLP(
-        #     *args.state_shape, args.action_shape, args.device, features_only=True
-        # )
-        # net = RiskAwareIQN(
-        #     feature_net,
-        #     args.action_shape,
-        #     args.hidden_sizes,
-        #     num_cosines=args.num_cosines,
-        #     device=args.device
-        # ).to(args.device)
-        # if optim is None:
-        #     optim = torch.optim.Adam(net.parameters(), lr=args.lr)
-        # agent_learn = RiskAwareIQNPolicy(
-        #     net,
-        #     optim,
-        #     args.gamma,
-        #     args.sample_size,
-        #     args.online_sample_size,
-        #     args.target_sample_size,
-        #     args.n_step,
-        #     target_update_freq=args.target_update_freq
-        # )
-        if args.resume_path:
-            agent_learn.load_state_dict(torch.load(args.resume_path))
+        if args.agent_learn_algo == "iqn":
+            agent_learn, optim = create_iqn_agent(args, cvar_eta=1.0)
+        elif args.agent_learn_algo == "dqn":
+            agent_learn, optim = create_dqn_agent(args)
 
     if agent_opponent is None:
-        if args.opponent_path:
-            agent_opponent = deepcopy(agent_learn)
-            agent_opponent.load_state_dict(torch.load(args.opponent_path))
-        else:
-            agent_opponent = RandomPolicy()
+        agent_opponent, _ = create_iqn_agent(args, cvar_eta=args.cvar_eta)
+        agent_opponent.load_state_dict(torch.load(args.opponent_resume_path))
 
+    # do not train the opponent agent
     if args.agent_id == 1:
         agents = [agent_learn, agent_opponent]
+        policies_to_learn = {"player_0": True, "player_1": False}
     else:
         agents = [agent_opponent, agent_learn]
-    policy = MultiAgentPolicyManager(agents, env)
+        policies_to_learn = {"player_0": False, "player_1": True}
+
+    policy = CustomMAPolicyManager(agents, env, policies_to_learn=policies_to_learn)
     return policy, optim, env.agents
 
 
@@ -197,7 +169,7 @@ def train_agent(
     # policy.set_eps(1)
     train_collector.collect(n_step=args.batch_size * args.training_num)
     # log
-    log_path = os.path.join(args.logdir, 'leduc', 'iqn')
+    log_path = os.path.join(args.logdir, 'leduc', f'{args.agent_learn_algo}_vs_iqn_cvar-eta={args.cvar_eta}')
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
@@ -207,14 +179,14 @@ def train_agent(
             model_save_path = args.model_save_path
         else:
             model_save_path = os.path.join(
-                args.logdir, 'leduc', 'iqn', 'policy.pth'
+                args.logdir, 'leduc', f'{args.agent_learn_algo}_vs_iqn_cvar-eta={args.cvar_eta}', 'policy.pth'
             )
         torch.save(
             policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path
         )
 
     def stop_fn(mean_rewards):
-        return mean_rewards >= args.win_rate
+        return None # mean_rewards >= args.win_rate
 
     def train_fn(epoch, env_step):
         policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_train)
@@ -246,7 +218,6 @@ def train_agent(
     )
 
     return result, policy.policies[agents[args.agent_id - 1]]
-
 
 def watch(
     args: argparse.Namespace = get_args(),
