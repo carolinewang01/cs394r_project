@@ -1,50 +1,65 @@
 import pprint
 
 
-def test_tic_tac_toe():
-    from tic_tac_toe_iqn_self_play import get_args, train_agent, train_selfplay, watch
-    args = get_args()
-
-    if args.watch:
-        watch(args)
-        return
-
-    #result, agent = train_agent(args)
-    result, agent = train_selfplay(args)
-    #assert result["best_reward"] >= args.win_rate
-    print("Result dictionary from last iteration of self-play.")
-    pprint.pprint(result)
-    # watch(args, agent_learn=agent)
-
-def test_leduc():
+def train_iqn_vs_random(env_id, seed=1626, trial_idx=0):
     '''train iqn agent vs random
     '''
-    from leduc_iqn_random import get_args, train_agent, watch
+    from train_iqn_random import get_args, train_agent, watch
 
     args=get_args()
-
-    if args.watch:
-        watch(args)
-        return
+    args.env_id = env_id
+    args.seed = seed
+    args.trial_idx = trial_idx
 
     result, agent = train_agent(args)
     pprint.pprint(result)
 
-def test_leduc_risk_aware():
+def train_risk_aware(env_id, 
+                     agent_learn_algo, opponent_resume_path,
+                     cvar_eta=1.0,
+                     seed=1626, trial_idx=0
+    ):
     '''train args.algo agent vs pre-trained iqn agent
-    '''
-    from leduc_risk_aware import get_args, train_agent, watch
 
-    # make sure to specify --agent-learn-algo, --cvar-eta, --opponent-resume-path
+    Make sure to specify --agent-learn-algo, --cvar-eta, --opponent-resume-path
+    '''
+    from train_risk_aware import get_args, train_agent, watch
+
     args = get_args()
-    if args.watch:
-        watch(args)
-        return
+    args.env_id = env_id
+    args.agent_learn_algo = agent_learn_algo
+    args.opponent_resume_path = opponent_resume_path
+    args.cvar_eta= cvar_eta
+    args.seed = seed
+    args.trial_idx = trial_idx
 
     result, agent = train_agent(args)
     pprint.pprint(result)
 
 if __name__ == '__main__':
-    # test_tic_tac_toe()
-    # test_leduc()
-    test_leduc_risk_aware()
+    # train single IQN vs random agent
+    SEEDS = [1626, 
+            174, 571, 2948, 109284
+            ]
+    ENV_IDS = ["leduc", 
+               "tic-tac-toe", 
+               "texas"
+               ]
+    CVAR_ETAS = [0.1, 
+    0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+    ]
+
+    # train_iqn_vs_random(env_id="texas", seed=1626, trial_idx=0)
+
+    for env_id in ENV_IDS:
+        print("TRAINING IQN VS RANDOM")
+        train_iqn_vs_random(env_id=env_id, seed=1626, trial_idx=0)
+        for algo in ["iqn", "dqn"]:
+            for trial_idx, seed in enumerate(SEEDS):
+                for cvar_eta in CVAR_ETAS:
+                    print(f"\nEXPT trial={trial_idx}, env_id={env_id}, algo={algo}, cvar_eta={cvar_eta}")
+                    train_risk_aware(env_id=env_id,
+                                     agent_learn_algo=algo,
+                                     opponent_resume_path=f"log/{env_id}/iqn-vs-random_trial=0/policy.pth",
+                                     cvar_eta=cvar_eta,
+                                     seed=seed, trial_idx=trial_idx)
