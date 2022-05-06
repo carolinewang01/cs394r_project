@@ -15,4 +15,5 @@ pip install opencv-python matplotlib tqdm pettingzoo;
 # extra commands to run tianshou's IQN example with atari
 pip install gym\[atari\];
 pip install envpool;
-pip install rlcard
+pip install rlcard;
+pip install pygame;
