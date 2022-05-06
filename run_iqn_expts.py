@@ -2,7 +2,9 @@ import pprint
 import time
 
 
-def train_vs_random(env_id, agent_learn_algo, seed=1626, trial_idx=0):
+def train_vs_random(env_id, agent_learn_algo, 
+                    eta=1.0, risk_distortion=None,
+                    seed=1626, trial_idx=0):
     '''train iqn agent vs random
     '''
     from train_vs_random import get_args, train_agent, watch
@@ -10,6 +12,8 @@ def train_vs_random(env_id, agent_learn_algo, seed=1626, trial_idx=0):
     args=get_args()
     args.agent_learn_algo = agent_learn_algo
     args.env_id = env_id
+    args.eta = eta
+    args.risk_distortion = risk_distortion
     args.seed = seed
     args.trial_idx = trial_idx
 
@@ -74,7 +78,10 @@ if __name__ == '__main__':
     for env_id in ENV_IDS:
         for algo_v_random in OPPONENT_LEARN_ALGO:
             print(f"TRAINING {algo_v_random} OPPONENT")
-            train_vs_random(env_id=env_id, agent_learn_algo=algo_v_random, seed=1626, trial_idx=0)
+            train_vs_random(env_id=env_id, 
+                            agent_learn_algo=algo_v_random, 
+                            eta=1.0, risk_distortion=None,
+                            seed=1626, trial_idx=0)
 
             for algo in AGENT_LEARN_ALGO:
                 for trial_idx, seed in enumerate(SEEDS):
