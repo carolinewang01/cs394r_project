@@ -43,6 +43,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('--env-id', type=str, choices=["leduc", "tic-tac-toe", "texas"], default=None)
     parser.add_argument('--agent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
     parser.add_argument('--cvar-eta', type=int, default=1.0, help='cvar eta param of opponent IQN agent')
+    parser.add_argument('--opponent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm of the opponent')
     parser.add_argument(
         '--opponent-resume-path',
         type=str,
@@ -138,7 +139,11 @@ def get_agents(
             agent_learn, optim = create_dqn_agent(args)
 
     if agent_opponent is None:
-        agent_opponent, _ = create_iqn_agent(args, cvar_eta=args.cvar_eta)
+        if args.opponent_learn_algo == "iqn":
+            agent_opponent, optim = create_iqn_agent(args, cvar_eta=args.cvar_eta)
+        elif args.opponent_learn_algo == "dqn":
+            agent_opponent, optim = create_dqn_agent(args)
+
         agent_opponent.load_state_dict(torch.load(args.opponent_resume_path))
 
     # do not train the opponent agent
@@ -186,7 +191,7 @@ def train_agent(
     # policy.set_eps(1)
     train_collector.collect(n_step=args.batch_size * args.num_training_envs)
     # log
-    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-iqn_trial={args.trial_idx}_cvar-eta={args.cvar_eta}')
+    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_cvar-eta={args.cvar_eta}')
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
@@ -196,7 +201,7 @@ def train_agent(
             model_save_path = args.model_save_path
         else:
             model_save_path = os.path.join(
-                args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-iqn_trial={args.trial_idx}_cvar-eta={args.cvar_eta}', 'policy.pth'
+                args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_cvar-eta={args.cvar_eta}', 'policy.pth'
             )
         torch.save(
             policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path

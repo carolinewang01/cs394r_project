@@ -44,8 +44,18 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
         taus = torch.rand(
             batch_size, sample_size, dtype=logits.dtype, device=logits.device
         )
-        taus *= self.cvar_eta
+        new_taus = taus* self.cvar_eta
+
         embedding = (logits.unsqueeze(1) *
-                     self.embed_model(taus)).view(batch_size * sample_size, -1)
+                     self.embed_model(new_taus)).view(batch_size * sample_size, -1)
+
         out = self.last(embedding).view(batch_size, sample_size, -1).transpose(1, 2)
-        return (out, taus), hidden
+        
+        # if self.cvar_eta != 1:
+        #     print("NEW OUT IS ", torch.mean(out))
+        #     old_embedding = (logits.unsqueeze(1) *
+        #                  self.embed_model(taus)).view(batch_size * sample_size, -1)
+        #     old_out = self.last(old_embedding).view(batch_size, sample_size, -1).transpose(1, 2)
+
+        #     print("OLD OUT IS ", torch.mean(old_out))
+        return (out, new_taus), hidden

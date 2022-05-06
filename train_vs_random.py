@@ -196,7 +196,7 @@ def train_agent(
     train_collector.collect(n_step=args.batch_size * args.num_training_envs)
     # log
 
-    log_path = os.path.join(args.logdir, args.env_id, f'iqn-vs-random_trial={args.trial_idx}')
+    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-random_trial={args.trial_idx}')
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
@@ -206,7 +206,7 @@ def train_agent(
             model_save_path = args.model_save_path
         else:
             model_save_path = os.path.join(
-                args.logdir, args.env_id, f'iqn-vs-random_trial={args.trial_idx}', 'policy.pth'
+                args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-random_trial={args.trial_idx}', 'policy.pth'
             )
         torch.save(
             policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path

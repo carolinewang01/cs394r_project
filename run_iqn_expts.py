@@ -17,7 +17,8 @@ def train_vs_random(env_id, agent_learn_algo, seed=1626, trial_idx=0):
     pprint.pprint(result)
 
 def train_risk_aware(env_id, 
-                     agent_learn_algo, opponent_resume_path,
+                     agent_learn_algo, 
+                     opponent_learn_algo, opponent_resume_path,
                      cvar_eta=1.0,
                      seed=1626, trial_idx=0
     ):
@@ -30,6 +31,8 @@ def train_risk_aware(env_id,
     args = get_args()
     args.env_id = env_id
     args.agent_learn_algo = agent_learn_algo
+    args.opponent_learn_algo = opponent_learn_algo
+
     args.opponent_resume_path = opponent_resume_path
     args.cvar_eta= cvar_eta
     args.seed = seed
@@ -49,26 +52,46 @@ if __name__ == '__main__':
                # "tic-tac-toe",  # order of agents fixed, need to fix this
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
+    OPPONENT_LEARN_ALGO = ["iqn", "dqn"]
+    AGENT_LEARN_ALGO = ["iqn", "dqn"]
+
     CVAR_ETAS = [0.2, 0.4, 0.6, 0.8, 1.0
     ]
 
-    # train_risk_aware(env_id="texas",
-    #                  agent_learn_algo="dqn",
-    #                  opponent_resume_path=f"log/texas/iqn-vs-random_trial=0/policy.pth",
-    #                  cvar_eta=0.2,
-    #                  seed=10000, trial_idx=0)
+    # for cvar_eta in CVAR_ETS:
+    #     train_risk_aware(env_id="leduc",
+    #                      agent_learn_algo="dqn",
+    #                      opponent_learn_algo="iqn",
+    #                      opponent_resume_path=f"log/leduc/iqn-vs-random_trial=0/policy.pth",
+    #                      cvar_eta=cvar_eta,
+    #                      seed=10000, trial_idx=0)
+
+    # import sys; sys.exit(0)
 
     for env_id in ENV_IDS:
-        print("TRAINING IQN VS RANDOM")
-        train_vs_random(env_id=env_id, agent_learn_algo="iqn", seed=1626, trial_idx=0)
-        for algo in ["iqn", "dqn"]:
-            for trial_idx, seed in enumerate(SEEDS):
-                for cvar_eta in CVAR_ETAS:
-                    print(f"\nEXPT trial={trial_idx}, env_id={env_id}, algo={algo}, cvar_eta={cvar_eta}")
-                    train_risk_aware(env_id=env_id,
-                                     agent_learn_algo=algo,
-                                     opponent_resume_path=f"log/{env_id}/iqn-vs-random_trial=0/policy.pth",
-                                     cvar_eta=cvar_eta,
-                                     seed=seed, trial_idx=trial_idx)
+        for algo_v_random in OPPONENT_LEARN_ALGO:
+            print(f"TRAINING {algo_v_random} OPPONENT")
+            train_vs_random(env_id=env_id, agent_learn_algo=algo_v_random, seed=1626, trial_idx=0)
+
+            for algo in AGENT_LEARN_ALGO:
+                for trial_idx, seed in enumerate(SEEDS):
+                    if algo_v_random == "iqn":
+                        for cvar_eta in CVAR_ETAS:
+                            print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}, cvar_eta={cvar_eta}")
+                            train_risk_aware(env_id=env_id,
+                                             agent_learn_algo=algo,
+                                             opponent_learn_algo=algo_v_random,
+                                             opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
+                                             cvar_eta=cvar_eta,
+                                             seed=seed, trial_idx=trial_idx)
+                    elif algo_v_random == "dqn": 
+                        print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}")
+                        train_risk_aware(env_id=env_id,
+                                         agent_learn_algo=algo,
+                                         opponent_learn_algo=algo_v_random,
+                                         opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
+                                         cvar_eta=1.0, # doesn't matter what this is
+                                         seed=seed, trial_idx=trial_idx)
+
     end = time.time()
     print("SCRIPT RUN TIME: ", end - start)
