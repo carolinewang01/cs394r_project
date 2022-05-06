@@ -142,7 +142,7 @@ def get_agents(
     if agent_learn is None:
         # define model
         if args.agent_learn_algo == "iqn":
-            agent_learn, optim = create_iqn_agent(args, cvar_eta=1.0)
+            agent_learn, optim = create_iqn_agent(args, risk_distortion=None)
         elif args.agent_learn_algo == "dqn":
             agent_learn, optim = create_dqn_agent(args)
 

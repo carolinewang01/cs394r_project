@@ -42,7 +42,6 @@ def get_parser() -> argparse.ArgumentParser:
     #### MUST SPECIFY ####
     parser.add_argument('--env-id', type=str, choices=["leduc", "tic-tac-toe", "texas"], default=None)
     parser.add_argument('--agent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
-    parser.add_argument('--cvar-eta', type=int, default=1.0, help='cvar eta param of opponent IQN agent')
     parser.add_argument('--opponent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm of the opponent')
     parser.add_argument(
         '--opponent-resume-path',
@@ -51,6 +50,9 @@ def get_parser() -> argparse.ArgumentParser:
         help='the path of opponent agent pth file '
         'for resuming from a pre-trained agent'
     )
+    parser.add_argument('--eta', type=int, default=1.0, help='eta param of opponent IQN agent')
+    parser.add_argument('--risk-distortion', type=str, choices=["cvar", "wang", "pow", None], help='distortion type of opponent IQN agent')
+
     ######################
     parser.add_argument('--seed', type=int, default=1626)
     parser.add_argument('--trial-idx', type=int, default=0)
@@ -134,13 +136,13 @@ def get_agents(
 
     if agent_learn is None:
         if args.agent_learn_algo == "iqn":
-            agent_learn, optim = create_iqn_agent(args, cvar_eta=1.0)
+            agent_learn, optim = create_iqn_agent(args, risk_distortion=None)
         elif args.agent_learn_algo == "dqn":
             agent_learn, optim = create_dqn_agent(args)
 
     if agent_opponent is None:
         if args.opponent_learn_algo == "iqn":
-            agent_opponent, optim = create_iqn_agent(args, cvar_eta=args.cvar_eta)
+            agent_opponent, optim = create_iqn_agent(args, eta=args.eta, risk_distortion=args.risk_distortion)
         elif args.opponent_learn_algo == "dqn":
             agent_opponent, optim = create_dqn_agent(args)
 
@@ -191,7 +193,7 @@ def train_agent(
     # policy.set_eps(1)
     train_collector.collect(n_step=args.batch_size * args.num_training_envs)
     # log
-    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_cvar-eta={args.cvar_eta}')
+    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_eta={args.eta}_risk-distort={args.risk_distortion}')
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
@@ -201,7 +203,7 @@ def train_agent(
             model_save_path = args.model_save_path
         else:
             model_save_path = os.path.join(
-                args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_cvar-eta={args.cvar_eta}', 'policy.pth'
+                args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_eta={args.eta}_risk-distort={args.risk_distortion}', 'policy.pth'
             )
         torch.save(
             policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path

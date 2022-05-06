@@ -19,12 +19,12 @@ def train_vs_random(env_id, agent_learn_algo, seed=1626, trial_idx=0):
 def train_risk_aware(env_id, 
                      agent_learn_algo, 
                      opponent_learn_algo, opponent_resume_path,
-                     cvar_eta=1.0,
+                     eta=1.0, risk_distortion=None,
                      seed=1626, trial_idx=0
     ):
     '''train args.algo agent vs pre-trained iqn agent
 
-    Make sure to specify --agent-learn-algo, --cvar-eta, --opponent-resume-path
+    Make sure to specify --agent-learn-algo, --eta, --risk-distortion, --opponent-resume-path
     '''
     from train_risk_aware import get_args, train_agent, watch
 
@@ -34,7 +34,8 @@ def train_risk_aware(env_id,
     args.opponent_learn_algo = opponent_learn_algo
 
     args.opponent_resume_path = opponent_resume_path
-    args.cvar_eta= cvar_eta
+    args.eta = eta
+    args.risk_distortion = risk_distortion
     args.seed = seed
     args.trial_idx = trial_idx
 
@@ -49,22 +50,24 @@ if __name__ == '__main__':
     ENV_IDS = [
                "leduc", 
                "texas",
-               # "tic-tac-toe",  # order of agents fixed, need to fix this
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     OPPONENT_LEARN_ALGO = ["iqn", "dqn"]
     AGENT_LEARN_ALGO = ["iqn", "dqn"]
 
-    CVAR_ETAS = [0.2, 0.4, 0.6, 0.8, 1.0
-    ]
+    RISK_DISTORTION_DICT = { # possible eta values
+        "cvar": [0.2, 0.4, 0.6, 0.8, 1.0],
+        "wang": [-0.75, -0.25, 0.25, 0.75], # positive corresponds to risk seeking, negative to risk averse
+        "pow": [-2.5, -1.5, 1.5, 2.5] # positive corresponds to risk seeking, negative to risk averse
+    }
 
-    # for cvar_eta in CVAR_ETS:
-    #     train_risk_aware(env_id="leduc",
-    #                      agent_learn_algo="dqn",
-    #                      opponent_learn_algo="iqn",
-    #                      opponent_resume_path=f"log/leduc/iqn-vs-random_trial=0/policy.pth",
-    #                      cvar_eta=cvar_eta,
-    #                      seed=10000, trial_idx=0)
+    RISK_TYPE = "cvar"
+    # train_risk_aware(env_id="leduc",
+    #                  agent_learn_algo="dqn",
+    #                  opponent_learn_algo="iqn",
+    #                  opponent_resume_path=f"log/leduc/iqn-vs-random_trial=0/policy.pth",
+    #                  eta=-2, risk_distortion="pow",
+    #                  seed=10000, trial_idx=0)
 
     # import sys; sys.exit(0)
 
@@ -76,13 +79,13 @@ if __name__ == '__main__':
             for algo in AGENT_LEARN_ALGO:
                 for trial_idx, seed in enumerate(SEEDS):
                     if algo_v_random == "iqn":
-                        for cvar_eta in CVAR_ETAS:
-                            print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}, cvar_eta={cvar_eta}")
+                        for eta in RISK_DISTORTION_DICT[RISK_TYPE]:
+                            print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}, eta={eta}")
                             train_risk_aware(env_id=env_id,
                                              agent_learn_algo=algo,
                                              opponent_learn_algo=algo_v_random,
                                              opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
-                                             cvar_eta=cvar_eta,
+                                             eta=eta, risk_distortion=RISK_TYPE,
                                              seed=seed, trial_idx=trial_idx)
                     elif algo_v_random == "dqn": 
                         print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}")
@@ -90,7 +93,7 @@ if __name__ == '__main__':
                                          agent_learn_algo=algo,
                                          opponent_learn_algo=algo_v_random,
                                          opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
-                                         cvar_eta=1.0, # doesn't matter what this is
+                                         eta=1.0, risk_distortion=None,# doesn't matter what this is
                                          seed=seed, trial_idx=trial_idx)
 
     end = time.time()
