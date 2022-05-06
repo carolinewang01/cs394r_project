@@ -2,12 +2,13 @@ import pprint
 import time
 
 
-def train_iqn_vs_random(env_id, seed=1626, trial_idx=0):
+def train_vs_random(env_id, agent_learn_algo, seed=1626, trial_idx=0):
     '''train iqn agent vs random
     '''
-    from train_iqn_random import get_args, train_agent, watch
+    from train_vs_random import get_args, train_agent, watch
 
     args=get_args()
+    args.agent_learn_algo = agent_learn_algo
     args.env_id = env_id
     args.seed = seed
     args.trial_idx = trial_idx
@@ -42,18 +43,24 @@ if __name__ == '__main__':
     SEEDS = [1626, 
             174, 571, 2948, 109284
             ]
-    ENV_IDS = ["leduc", 
-               "tic-tac-toe", 
-               "texas"
+    ENV_IDS = [
+               "leduc", 
+               "texas",
+               # "tic-tac-toe",  # order of agents fixed, need to fix this
+               # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     CVAR_ETAS = [0.2, 0.4, 0.6, 0.8, 1.0
     ]
 
-    # train_iqn_vs_random(env_id="texas", seed=1626, trial_idx=0)
+    # train_risk_aware(env_id="texas",
+    #                  agent_learn_algo="dqn",
+    #                  opponent_resume_path=f"log/texas/iqn-vs-random_trial=0/policy.pth",
+    #                  cvar_eta=0.2,
+    #                  seed=10000, trial_idx=0)
 
     for env_id in ENV_IDS:
         print("TRAINING IQN VS RANDOM")
-        train_iqn_vs_random(env_id=env_id, seed=1626, trial_idx=0)
+        train_vs_random(env_id=env_id, agent_learn_algo="iqn", seed=1626, trial_idx=0)
         for algo in ["iqn", "dqn"]:
             for trial_idx, seed in enumerate(SEEDS):
                 for cvar_eta in CVAR_ETAS:

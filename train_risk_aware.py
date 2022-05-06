@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 import gym
 import numpy as np
 import torch
-from pettingzoo.classic import leduc_holdem_v4, tictactoe_v3, texas_holdem_v4
+from pettingzoo.classic import leduc_holdem_v4, tictactoe_v3, texas_holdem_v4, texas_holdem_no_limit_v6
 from torch.utils.tensorboard import SummaryWriter
 
 from tianshou.data import Collector, VectorReplayBuffer
@@ -30,6 +30,10 @@ def get_env(env_id):
         env = PettingZooEnv(tictactoe_v3.env())
     elif env_id == "texas":
         env = PettingZooEnv(texas_holdem_v4.env(num_players=2))
+    elif env_id == "texas-no-limit":
+        env = PettingZooEnv(texas_holdem_no_limit_v6.env(num_players=2))
+    else: 
+        raise Exception(f"Env name {env_id} not valid.")
     return env
 
 def get_parser() -> argparse.ArgumentParser:
@@ -38,7 +42,7 @@ def get_parser() -> argparse.ArgumentParser:
     #### MUST SPECIFY ####
     parser.add_argument('--env-id', type=str, choices=["leduc", "tic-tac-toe", "texas"], default=None)
     parser.add_argument('--agent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
-    parser.add_argument('--cvar_eta', type=int, default=1.0, help='cvar eta param of opponent IQN agent')
+    parser.add_argument('--cvar-eta', type=int, default=1.0, help='cvar eta param of opponent IQN agent')
     parser.add_argument(
         '--opponent-resume-path',
         type=str,
@@ -138,15 +142,16 @@ def get_agents(
         agent_opponent.load_state_dict(torch.load(args.opponent_resume_path))
 
     # do not train the opponent agent
+    agent_labels = env.agents # whether env agents are 0 or 1 indexed is not consistent across envs
     if args.agent_id == 1:
         agents = [agent_learn, agent_opponent]
-        policies_to_learn = {"player_0": True, "player_1": False}
-    else:
+        policies_to_learn = {agent_labels[0]: True, agent_labels[1]: False}
+    elif args.agent_id == 2:
         agents = [agent_opponent, agent_learn]
-        policies_to_learn = {"player_0": False, "player_1": True}
+        policies_to_learn = {agent_labels[0]: False, agent_labels[1]: True}
 
     policy = CustomMAPolicyManager(agents, env, policies_to_learn=policies_to_learn)
-    return policy, optim, env.agents
+    return policy, optim, agent_labels
 
 
 def train_agent(

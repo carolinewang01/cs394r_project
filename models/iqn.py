@@ -35,7 +35,6 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
     def forward(self, 
         obs: Union[np.ndarray, torch.Tensor], 
         sample_size: int, 
-        risk_aware: bool=False,
         **kwargs: Any
     ) -> Tuple[Any, torch.Tensor]:
         r"""Mapping: s -> Q(s, \*)."""
@@ -45,8 +44,7 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
         taus = torch.rand(
             batch_size, sample_size, dtype=logits.dtype, device=logits.device
         )
-        if risk_aware:
-            taus *= cvar_eta
+        taus *= self.cvar_eta
         embedding = (logits.unsqueeze(1) *
                      self.embed_model(taus)).view(batch_size * sample_size, -1)
         out = self.last(embedding).view(batch_size, sample_size, -1).transpose(1, 2)

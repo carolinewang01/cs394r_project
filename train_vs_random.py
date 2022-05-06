@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 import gym
 import numpy as np
 import torch
-from pettingzoo.classic import leduc_holdem_v4, tictactoe_v3, texas_holdem_v4
+from pettingzoo.classic import leduc_holdem_v4, tictactoe_v3, texas_holdem_v4, texas_holdem_no_limit_v6
 from torch.utils.tensorboard import SummaryWriter
 
 from tianshou.data import Collector, VectorReplayBuffer
@@ -32,11 +32,16 @@ def get_env(env_id):
         env = PettingZooEnv(tictactoe_v3.env())
     elif env_id == "texas":
         env = PettingZooEnv(texas_holdem_v4.env(num_players=2))
+    elif env_id == "texas-no-limit":
+        env = PettingZooEnv(texas_holdem_no_limit_v6.env(num_players=2))
+    else: 
+        raise Exception(f"Env name {env_id} not valid.")
     return env
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument('--env-id', type=str, choices=["leduc", "tic-tac-toe", "texas"], default=None)
+    parser.add_argument('--agent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
 
     parser.add_argument('--seed', type=int, default=1626)
     parser.add_argument('--trial-idx', type=int, default=0)
@@ -136,7 +141,11 @@ def get_agents(
 
     if agent_learn is None:
         # define model
-        agent_learn, optim = create_iqn_agent(args, cvar_eta=1.0)
+        if args.agent_learn_algo == "iqn":
+            agent_learn, optim = create_iqn_agent(args, cvar_eta=1.0)
+        elif args.agent_learn_algo == "dqn":
+            agent_learn, optim = create_dqn_agent(args)
+
         if args.resume_path:
             agent_learn.load_state_dict(torch.load(args.resume_path))
 
