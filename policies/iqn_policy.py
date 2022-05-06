@@ -37,7 +37,6 @@ class RiskAwareIQNPolicy(IQNPolicy):
         state: Optional[Union[dict, Batch, np.ndarray]] = None,
         model: str = "model",
         input: str = "obs",
-        risk_aware: bool=False,
         **kwargs: Any,
     ) -> Batch:
         if model == "model_old":
@@ -49,12 +48,24 @@ class RiskAwareIQNPolicy(IQNPolicy):
         model = getattr(self, model)
         obs = batch[input]
         obs_next = obs.obs if hasattr(obs, "obs") else obs
-        (logits, taus), hidden = model(
-            obs_next, sample_size=sample_size, state=state, info=batch.info,
-            risk_aware=risk_aware
+        (logits, taus, old_logits), hidden = model(
+            obs_next, sample_size=sample_size, state=state, info=batch.info
         )
+
         q = self.compute_q_value(logits, getattr(obs, "mask", None))
+        old_q = self.compute_q_value(old_logits, getattr(obs, "mask", None))
+
         if not hasattr(self, "max_action_num"):
             self.max_action_num = q.shape[1]
         act = to_numpy(q.max(dim=1)[1])
+        old_act = to_numpy(old_q.max(dim=1)[1])
+        # print("N ACTIONS ARE ", q.shape[1])
+        # print("OBS SHAPE IS ", obs.shape)
+        # print("ACTION MASK IS ", getattr(obs[0], "mask", None))
+        # print("NEW Q IS ", q[0, :])
+        # print("OLD Q IS ", old_q[0, :])
+
+        # print("NEW ACT IS ", act)
+        # print("OLD ACT IS ", old_act)
+        # assert (act==old_act).all(), "ACTIONS NOT EQUAL"
         return Batch(logits=logits, act=act, state=hidden, taus=taus)

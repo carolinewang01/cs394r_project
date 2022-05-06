@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 from torch import nn
+from torch.distributions.normal import Normal
 from tianshou.utils.net.discrete import ImplicitQuantileNetwork
 
 
@@ -18,7 +19,8 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
         hidden_sizes: Sequence[int] = (),
         num_cosines: int = 64,
         preprocess_net_output_dim: Optional[int] = None,
-        cvar_eta: float=1., 
+        eta: float=1., 
+        risk_distortion=None,
         device: Union[str, int, torch.device] = "cpu"
     ) -> None:
         super().__init__(preprocess_net=preprocess_net, 
@@ -29,8 +31,28 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
             device=device
             )
 
-        assert 0 < cvar_eta <= 1, "cvar_eta must be in (0, 1]"
-        self.cvar_eta = cvar_eta
+        # assert 0 < eta <= 1, "eta must be in (0, 1]"
+        assert risk_distortion in ["cvar", "wang", "pow", None]
+        self.eta = eta
+        self.risk_distortion = risk_distortion
+
+    def transform_tau(self, taus): 
+        # taus shape is (batch_size, 8)
+        if self.risk_distortion is None:
+            risk_measure = taus
+        elif self.risk_distortion == "cvar":
+            # print("TAU SHAPE IS ", taus.shape)
+            risk_measure = self.eta * taus
+        elif self.risk_distortion == "wang":
+            normal = Normal(0, 1)
+            risk_measure = normal.cdf(normal.icdf(taus) + self.eta)
+        elif self.risk_distortion == "pow":
+            if self.eta >= 0: # risk seeking
+                risk_measure = torch.pow(taus, 1/(1+np.abs(self.eta)))
+            else: # risk averse
+                ones = torch.ones_like(taus)
+                risk_measure = ones - torch.pow(ones - taus, 1/(1+np.abs(self.eta)))
+        return risk_measure
 
     def forward(self, 
         obs: Union[np.ndarray, torch.Tensor], 
@@ -44,18 +66,15 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
         taus = torch.rand(
             batch_size, sample_size, dtype=logits.dtype, device=logits.device
         )
-        new_taus = taus* self.cvar_eta
+        new_taus = self.transform_tau(taus)
 
         embedding = (logits.unsqueeze(1) *
                      self.embed_model(new_taus)).view(batch_size * sample_size, -1)
 
         out = self.last(embedding).view(batch_size, sample_size, -1).transpose(1, 2)
-        
-        # if self.cvar_eta != 1:
-        #     print("NEW OUT IS ", torch.mean(out))
-        #     old_embedding = (logits.unsqueeze(1) *
-        #                  self.embed_model(taus)).view(batch_size * sample_size, -1)
-        #     old_out = self.last(old_embedding).view(batch_size, sample_size, -1).transpose(1, 2)
+        ### 
+        old_embedding = (logits.unsqueeze(1) *
+                     self.embed_model(taus)).view(batch_size * sample_size, -1)
+        old_out = self.last(old_embedding).view(batch_size, sample_size, -1).transpose(1, 2)
 
-        #     print("OLD OUT IS ", torch.mean(old_out))
-        return (out, new_taus), hidden
+        return (out, new_taus, old_out), hidden

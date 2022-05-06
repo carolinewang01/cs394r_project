@@ -10,7 +10,7 @@ from models import RiskAwareIQN
 from policies import RiskAwareIQNPolicy, CustomMAPolicyManager
 
 
-def create_iqn_agent(args, cvar_eta):
+def create_iqn_agent(args, eta, risk_distortion):
     net = Net(
         args.state_shape,
         args.action_shape,
@@ -23,7 +23,8 @@ def create_iqn_agent(args, cvar_eta):
         args.action_shape,
         args.hidden_sizes,
         num_cosines=args.num_cosines,
-        cvar_eta=cvar_eta, # cvar_eta used at inference time only
+        eta=eta, # cvar_eta used at inference time only
+        risk_distortion=risk_distortion,
         device=args.device
     ).to(args.device)
 
