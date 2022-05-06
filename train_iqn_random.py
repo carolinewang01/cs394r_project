@@ -59,7 +59,7 @@ def get_parser() -> argparse.ArgumentParser:
 
 
     # usual RL args
-    parser.add_argument('--epoch', type=int, default=50)
+    parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--step-per-epoch', type=int, default=1000) # number transitions collected per epoch
     parser.add_argument('--step-per-collect', type=int, default=100) # number transitions per call of collector.collect()
     parser.add_argument('--update-per-step', type=float, default=0.1) # policy will be updated update-per-step*step-per-collect times per call of collector.collect()

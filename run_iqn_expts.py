@@ -1,4 +1,5 @@
 import pprint
+import time
 
 
 def train_iqn_vs_random(env_id, seed=1626, trial_idx=0):
@@ -37,7 +38,7 @@ def train_risk_aware(env_id,
     pprint.pprint(result)
 
 if __name__ == '__main__':
-    # train single IQN vs random agent
+    start = time.time()
     SEEDS = [1626, 
             174, 571, 2948, 109284
             ]
@@ -45,8 +46,7 @@ if __name__ == '__main__':
                "tic-tac-toe", 
                "texas"
                ]
-    CVAR_ETAS = [0.1, 
-    0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+    CVAR_ETAS = [0.2, 0.4, 0.6, 0.8, 1.0
     ]
 
     # train_iqn_vs_random(env_id="texas", seed=1626, trial_idx=0)
@@ -63,3 +63,5 @@ if __name__ == '__main__':
                                      opponent_resume_path=f"log/{env_id}/iqn-vs-random_trial=0/policy.pth",
                                      cvar_eta=cvar_eta,
                                      seed=seed, trial_idx=trial_idx)
+    end = time.time()
+    print("SCRIPT RUN TIME: ", end - start)

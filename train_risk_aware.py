@@ -67,7 +67,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('--target-update-freq', type=int, default=320)
 
     # usual RL args
-    parser.add_argument('--epoch', type=int, default=50)
+    parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--step-per-epoch', type=int, default=1000)
     parser.add_argument('--step-per-collect', type=int, default=100)
     parser.add_argument('--update-per-step', type=float, default=0.1)
