@@ -1,50 +1,97 @@
 import pprint
+import time
 
 
-def test_tic_tac_toe():
-    from tic_tac_toe_iqn_self_play import get_args, train_agent, train_selfplay, watch
-    args = get_args()
-
-    if args.watch:
-        watch(args)
-        return
-
-    #result, agent = train_agent(args)
-    result, agent = train_selfplay(args)
-    #assert result["best_reward"] >= args.win_rate
-    print("Result dictionary from last iteration of self-play.")
-    pprint.pprint(result)
-    # watch(args, agent_learn=agent)
-
-def test_leduc():
+def train_vs_random(env_id, agent_learn_algo, seed=1626, trial_idx=0):
     '''train iqn agent vs random
     '''
-    from leduc_iqn_random import get_args, train_agent, watch
+    from train_vs_random import get_args, train_agent, watch
 
     args=get_args()
-
-    if args.watch:
-        watch(args)
-        return
+    args.agent_learn_algo = agent_learn_algo
+    args.env_id = env_id
+    args.seed = seed
+    args.trial_idx = trial_idx
 
     result, agent = train_agent(args)
     pprint.pprint(result)
 
-def test_leduc_risk_aware():
+def train_risk_aware(env_id, 
+                     agent_learn_algo, 
+                     opponent_learn_algo, opponent_resume_path,
+                     cvar_eta=1.0,
+                     seed=1626, trial_idx=0
+    ):
     '''train args.algo agent vs pre-trained iqn agent
-    '''
-    from leduc_risk_aware import get_args, train_agent, watch
 
-    # make sure to specify --agent-learn-algo, --cvar-eta, --opponent-resume-path
+    Make sure to specify --agent-learn-algo, --cvar-eta, --opponent-resume-path
+    '''
+    from train_risk_aware import get_args, train_agent, watch
+
     args = get_args()
-    if args.watch:
-        watch(args)
-        return
+    args.env_id = env_id
+    args.agent_learn_algo = agent_learn_algo
+    args.opponent_learn_algo = opponent_learn_algo
+
+    args.opponent_resume_path = opponent_resume_path
+    args.cvar_eta= cvar_eta
+    args.seed = seed
+    args.trial_idx = trial_idx
 
     result, agent = train_agent(args)
     pprint.pprint(result)
 
 if __name__ == '__main__':
-    # test_tic_tac_toe()
-    # test_leduc()
-    test_leduc_risk_aware()
+    start = time.time()
+    SEEDS = [1626, 
+            174, 571, 2948, 109284
+            ]
+    ENV_IDS = [
+               "leduc", 
+               "texas",
+               # "tic-tac-toe",  # order of agents fixed, need to fix this
+               # "texas-no-limit" # order of agents fixed, need to fix this
+               ]
+    OPPONENT_LEARN_ALGO = ["iqn", "dqn"]
+    AGENT_LEARN_ALGO = ["iqn", "dqn"]
+
+    CVAR_ETAS = [0.2, 0.4, 0.6, 0.8, 1.0
+    ]
+
+    # for cvar_eta in CVAR_ETS:
+    #     train_risk_aware(env_id="leduc",
+    #                      agent_learn_algo="dqn",
+    #                      opponent_learn_algo="iqn",
+    #                      opponent_resume_path=f"log/leduc/iqn-vs-random_trial=0/policy.pth",
+    #                      cvar_eta=cvar_eta,
+    #                      seed=10000, trial_idx=0)
+
+    # import sys; sys.exit(0)
+
+    for env_id in ENV_IDS:
+        for algo_v_random in OPPONENT_LEARN_ALGO:
+            print(f"TRAINING {algo_v_random} OPPONENT")
+            train_vs_random(env_id=env_id, agent_learn_algo=algo_v_random, seed=1626, trial_idx=0)
+
+            for algo in AGENT_LEARN_ALGO:
+                for trial_idx, seed in enumerate(SEEDS):
+                    if algo_v_random == "iqn":
+                        for cvar_eta in CVAR_ETAS:
+                            print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}, cvar_eta={cvar_eta}")
+                            train_risk_aware(env_id=env_id,
+                                             agent_learn_algo=algo,
+                                             opponent_learn_algo=algo_v_random,
+                                             opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
+                                             cvar_eta=cvar_eta,
+                                             seed=seed, trial_idx=trial_idx)
+                    elif algo_v_random == "dqn": 
+                        print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}")
+                        train_risk_aware(env_id=env_id,
+                                         agent_learn_algo=algo,
+                                         opponent_learn_algo=algo_v_random,
+                                         opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
+                                         cvar_eta=1.0, # doesn't matter what this is
+                                         seed=seed, trial_idx=trial_idx)
+
+    end = time.time()
+    print("SCRIPT RUN TIME: ", end - start)

@@ -11,9 +11,6 @@ from policies import RiskAwareIQNPolicy, CustomMAPolicyManager
 
 
 def create_iqn_agent(args, cvar_eta):
-    # feature_net = MLP(
-    # *args.state_shape, args.action_shape, args.device, features_only=True
-    # )
     net = Net(
         args.state_shape,
         args.action_shape,
@@ -26,7 +23,7 @@ def create_iqn_agent(args, cvar_eta):
         args.action_shape,
         args.hidden_sizes,
         num_cosines=args.num_cosines,
-        cvar_eta=cvar_eta,
+        cvar_eta=cvar_eta, # cvar_eta used at inference time only
         device=args.device
     ).to(args.device)
 
