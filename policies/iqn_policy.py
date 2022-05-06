@@ -67,5 +67,5 @@ class RiskAwareIQNPolicy(IQNPolicy):
 
         # print("NEW ACT IS ", act)
         # print("OLD ACT IS ", old_act)
-        assert (act==old_act).all(), "ACTIONS NOT EQUAL"
+        # assert (act==old_act).all(), "ACTIONS NOT EQUAL"
         return Batch(logits=logits, act=act, state=hidden, taus=taus)
