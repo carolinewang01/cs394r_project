@@ -39,7 +39,9 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
     def transform_tau(self, taus): 
         # taus shape is (batch_size, 8)
         if self.risk_distortion is None:
-            risk_measure = taus
+            risk_measure =  taus
+            # risk_measure =  torch.exp(taus)
+
         elif self.risk_distortion == "cvar":
             # print("TAU SHAPE IS ", taus.shape)
             risk_measure = self.eta * taus
@@ -67,12 +69,13 @@ class RiskAwareIQN(ImplicitQuantileNetwork):
             batch_size, sample_size, dtype=logits.dtype, device=logits.device
         )
         new_taus = self.transform_tau(taus)
-
+        # print("EMBEDDED NEW TAU ", torch.mean(self.embed_model(new_taus)))
         embedding = (logits.unsqueeze(1) *
                      self.embed_model(new_taus)).view(batch_size * sample_size, -1)
 
         out = self.last(embedding).view(batch_size, sample_size, -1).transpose(1, 2)
         ### 
+        # print("EMBEDDED OLD TAU ", torch.mean(self.embed_model(taus)))
         old_embedding = (logits.unsqueeze(1) *
                      self.embed_model(taus)).view(batch_size * sample_size, -1)
         old_out = self.last(old_embedding).view(batch_size, sample_size, -1).transpose(1, 2)

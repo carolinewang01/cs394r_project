@@ -21,7 +21,7 @@ from tianshou.policy import BasePolicy
 # ours
 from policies import CustomMAPolicyManager
 from make_agents import create_iqn_agent, create_dqn_agent
-
+from helpers import set_seed
 
 def get_env(env_id):
     if env_id == "leduc":
@@ -136,7 +136,7 @@ def get_agents(
 
     if agent_learn is None:
         if args.agent_learn_algo == "iqn":
-            agent_learn, optim = create_iqn_agent(args, risk_distortion=None)
+            agent_learn, optim = create_iqn_agent(args, eta=1.0, risk_distortion=None)
         elif args.agent_learn_algo == "dqn":
             agent_learn, optim = create_dqn_agent(args)
 
@@ -172,11 +172,8 @@ def train_agent(
 
     train_envs = SubprocVectorEnv([env_fn for _ in range(args.num_training_envs)])
     test_envs = SubprocVectorEnv([env_fn for _ in range(args.num_test_envs)])
-    # seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    train_envs.seed(args.seed)
-    test_envs.seed(args.seed)
+
+    set_seed(args.seed, envs=[train_envs, test_envs])
 
     policy, optim, agents = get_agents(
         args, agent_learn=agent_learn, agent_opponent=agent_opponent, optim=optim
@@ -193,7 +190,7 @@ def train_agent(
     # policy.set_eps(1)
     train_collector.collect(n_step=args.batch_size * args.num_training_envs)
     # log
-    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_eta={args.eta}_risk-distort={args.risk_distortion}')
+    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_opponent-eta={args.eta}_opponent-risk-distort={args.risk_distortion}')
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
@@ -203,7 +200,7 @@ def train_agent(
             model_save_path = args.model_save_path
         else:
             model_save_path = os.path.join(
-                args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_eta={args.eta}_risk-distort={args.risk_distortion}', 'policy.pth'
+                args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-{args.opponent_learn_algo}_trial={args.trial_idx}_opponent-eta={args.eta}_opponent-risk-distort={args.risk_distortion}', 'policy.pth'
             )
         torch.save(
             policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path

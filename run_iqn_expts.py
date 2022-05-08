@@ -1,6 +1,6 @@
 import pprint
 import time
-
+from datetime import timedelta
 
 def train_vs_random(env_id, agent_learn_algo, 
                     eta=1.0, risk_distortion=None,
@@ -47,61 +47,63 @@ def train_risk_aware(env_id,
     pprint.pprint(result)
 
 if __name__ == '__main__':
-    start = time.time()
-    SEEDS = [1626, 
-            174, 571, 2948, 109284
-            ]
-    ENV_IDS = [
-               "leduc", 
+    SEEDS = [1626, 174, 571, 2948, 109284]
+    ENV_IDS = ["leduc", 
                "texas",
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
-    OPPONENT_LEARN_ALGO = ["iqn", "dqn"]
-    AGENT_LEARN_ALGO = ["iqn", "dqn"]
-
     RISK_DISTORTION_DICT = { # possible eta values
         "cvar": [0.2, 0.4, 0.6, 0.8, 1.0],
         "wang": [-0.75, -0.25, 0.25, 0.75], # positive corresponds to risk seeking, negative to risk averse
         "pow": [-2.5, -1.5, 1.5, 2.5] # positive corresponds to risk seeking, negative to risk averse
     }
+    
+    EXPT_NAME = "train_vs_risk_aware" # "train_vs_random"
+    ##################################################
+    start = time.time()
 
-    RISK_TYPE = "cvar"
-    # train_risk_aware(env_id="leduc",
-    #                  agent_learn_algo="dqn",
-    #                  opponent_learn_algo="iqn",
-    #                  opponent_resume_path=f"log/leduc/iqn-vs-random_trial=0/policy.pth",
-    #                  eta=-2, risk_distortion="pow",
-    #                  seed=10000, trial_idx=0)
+    if EXPT_NAME == "train_vs_random":
+        for env_id in ENV_IDS:
+            for trial_idx, seed in enumerate(SEEDS):
+                # train dqn v random
+                train_vs_random(env_id=env_id, 
+                                agent_learn_algo="dqn", 
+                                eta=1.0, risk_distortion=None,
+                                seed=seed, trial_idx=trial_idx)
+                # train iqn v random for all risk types
+                for risk_type, eta_list in RISK_DISTORTION_DICT.items():
+                    for eta in eta_list:
+                        train_vs_random(env_id=env_id, 
+                                        agent_learn_algo="iqn", 
+                                        eta=eta, risk_distortion=risk_type,
+                                        seed=seed, trial_idx=trial_idx)
 
-    # import sys; sys.exit(0)
+    elif EXPT_NAME == "train_vs_risk_aware":
+        OPPONENT_LEARN_ALGO = ["iqn", "dqn"]
+        AGENT_LEARN_ALGO = ["iqn", "dqn"]
 
-    for env_id in ENV_IDS:
-        for algo_v_random in OPPONENT_LEARN_ALGO:
-            print(f"TRAINING {algo_v_random} OPPONENT")
-            train_vs_random(env_id=env_id, 
-                            agent_learn_algo=algo_v_random, 
-                            eta=1.0, risk_distortion=None,
-                            seed=1626, trial_idx=0)
+        for env_id in ENV_IDS:
+            for trial_idx, seed in enumerate(SEEDS):
+                for opponent_algo in OPPONENT_LEARN_ALGO:
+                    for algo in AGENT_LEARN_ALGO:
 
-            for algo in AGENT_LEARN_ALGO:
-                for trial_idx, seed in enumerate(SEEDS):
-                    if algo_v_random == "iqn":
-                        for eta in RISK_DISTORTION_DICT[RISK_TYPE]:
-                            print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}, eta={eta}")
+                        if opponent_algo == "iqn":
+                            for risk_type, eta_list in RISK_DISTORTION_DICT.items():
+                                for eta in eta_list:
+                                    train_risk_aware(env_id=env_id,
+                                                     agent_learn_algo=algo,
+                                                     opponent_learn_algo=opponent_algo,
+                                                     opponent_resume_path=f"log/{env_id}/{opponent_algo}-vs-random_trial=0_eta={eta}_risk-distort={risk_type}/policy.pth",
+                                                     eta=eta, risk_distortion=risk_type,
+                                                     seed=seed, trial_idx=trial_idx)
+                        elif opponent_algo == "dqn": 
                             train_risk_aware(env_id=env_id,
                                              agent_learn_algo=algo,
-                                             opponent_learn_algo=algo_v_random,
-                                             opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
-                                             eta=eta, risk_distortion=RISK_TYPE,
+                                             opponent_learn_algo=opponent_algo,
+                                             opponent_resume_path=f"log/{env_id}/{opponent_algo}-vs-random_trial=0_eta=1.0_risk-distort=None/policy.pth",
+                                             eta=1.0, risk_distortion=None,# doesn't matter what this is
                                              seed=seed, trial_idx=trial_idx)
-                    elif algo_v_random == "dqn": 
-                        print(f"\nEXPT trial={trial_idx}, env_id={env_id}, agent algo={algo}, opponent algo={algo_v_random}")
-                        train_risk_aware(env_id=env_id,
-                                         agent_learn_algo=algo,
-                                         opponent_learn_algo=algo_v_random,
-                                         opponent_resume_path=f"log/{env_id}/{algo_v_random}-vs-random_trial=0/policy.pth",
-                                         eta=1.0, risk_distortion=None,# doesn't matter what this is
-                                         seed=seed, trial_idx=trial_idx)
 
     end = time.time()
-    print("SCRIPT RUN TIME: ", end - start)
+    elapsed = str(timedelta(seconds=end - start))
+    print("SCRIPT RUN TIME: ", elapsed)

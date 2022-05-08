@@ -23,6 +23,7 @@ from tianshou.utils import TensorboardLogger
 
 # ours
 from make_agents import create_iqn_agent, create_dqn_agent
+from helpers import set_seed
 
 
 def get_env(env_id):
@@ -178,11 +179,8 @@ def train_agent(
     env_fn = lambda: get_env(args.env_id)
     train_envs = SubprocVectorEnv([env_fn for _ in range(args.num_training_envs)])
     test_envs = SubprocVectorEnv([env_fn for _ in range(args.num_test_envs)])
-    # seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    train_envs.seed(args.seed)
-    test_envs.seed(args.seed)
+
+    set_seed(args.seed, envs=[train_envs, test_envs])
 
     policy, optim, agents = get_agents(
         args, agent_learn=agent_learn, agent_opponent=agent_opponent, optim=optim
