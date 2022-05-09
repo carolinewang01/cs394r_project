@@ -17,3 +17,4 @@ pip install gym\[atari\];
 pip install envpool;
 pip install rlcard;
 pip install pygame;
+pip install seaborn;

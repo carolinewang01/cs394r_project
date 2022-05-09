@@ -55,7 +55,7 @@ def train_risk_aware(env_id,
 if __name__ == '__main__':
     start = time.time()
     SEEDS = [
-            1626, #174, 571, 2948, 109284
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9469, 5293, 1436, 564, 3654, 5106, 8570, 5858, 9603, 4703, #1626, 174, 571, 2948, 109284
             ]
     ENV_IDS = [
                "leduc", 
@@ -68,25 +68,31 @@ if __name__ == '__main__':
 
     RISK_DISTORTION_DICT = { # possible eta values
         "cvar": [0.2, 0.4, 0.6, 0.8, 1.0],
-        "wang": [-0.75, -0.25, 0.25, 0.75], # positive corresponds to risk seeking, negative to risk averse
-        "pow": [-2.5, -1.5, 1.5, 2.5] # positive corresponds to risk seeking, negative to risk averse
+        "wang": [-0.75, -0.25, 0.0, 0.25, 0.75], # positive corresponds to risk seeking, negative to risk averse
+        "pow": [-2.5, -1.5, 0.0, 1.5, 2.5] # positive corresponds to risk seeking, negative to risk averse
     }
 
     for env_id in ENV_IDS:
-        for algo in AGENT_LEARN_ALGO:
-            if algo=='dqn':
-                        train_vs_random(env_id=env_id,
+        for seed in SEEDS:
+            trial_idx = seed
+            for algo in AGENT_LEARN_ALGO:
+                if algo=='dqn':
+                    train_vs_random(env_id=env_id,
                                          agent_learn_algo=algo,
                                          eta=1.0, # doesn't matter what this is
                                          risk_distortion=None,
+                                         seed=seed,
+                                         trial_idx=trial_idx
                                         )
-            if algo=='iqn':
-                risk_distortion='cvar'
-                for eta in RISK_DISTORTION_DICT[risk_distortion]:
+                if algo=='iqn':
+                    risk_distortion='pow'
+                    for eta in RISK_DISTORTION_DICT[risk_distortion]:
                         train_vs_random(env_id=env_id,
                                         agent_learn_algo=algo,
                                         eta=eta,
                                         risk_distortion=risk_distortion,
+                                        seed=seed,
+                                        trial_idx=trial_idx
                                         )
     '''
     RISK_TYPE = "cvar"

@@ -28,6 +28,7 @@ def plot_single_exp(filelists,
             data.append([e.value for e in events])
             step=[e.step for e in events]
         data=np.array(data)
+        step=step
         out[tag]=np.mean(data,axis=0)
         std[tag]=np.std(data,axis=0)
         plt.plot(step,out[tag], label=legend)
@@ -36,6 +37,7 @@ def plot_single_exp(filelists,
 
 def plot_exps(filelists):
     plt.figure(0)
+    filelists=dict(sorted(filelists.items()))
     for attr, files in filelists.items():
         plot_single_exp(filelists=files, legend=attr)
     plt.legend()
@@ -69,4 +71,7 @@ def aggregate(
     plot_exps(filelists)
 
 if __name__=='__main__':
-    aggregate()
+    #aggregate(exp_path='./log/leduc-epoch50-test-100/')
+    #aggregate(exp_path='./log/leduc-epoch150-test-1000/')
+    aggregate(exp_path='./log/leduc/',
+              exp_risk_distortions=['pow','None'])
