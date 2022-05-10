@@ -2,7 +2,7 @@
 
 ## Installation
 ```bash
-source scripts/install.sh
+source setup/install.sh
 conda activate cs394r
 ```
 
