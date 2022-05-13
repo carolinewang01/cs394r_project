@@ -45,14 +45,14 @@ class AgentPool(BasePolicy):
         If the size of the pool is greater than zero, return a uniformly sampled joint policy
         Else return a random policy
         """
-        print("FORWARD OF AGENT POOL")
         if self.len>0 and self.eps!=1.0:
             """
             Randomly select a policy and act
             """
             sampled_policy = self.policies[random.randint(0,len(self.policies)-1)]
             if self.risk_aware:
-                sampled_policy.model.cvar_eta = random.uniform(0, 1) 
+                sampled_policy.model.risk_distortion="wang"
+                sampled_policy.model.eta = random.uniform(-0.2, 0.2) 
             return sampled_policy(batch, 
                                   state, 
                                   risk_aware=self.risk_aware,
@@ -75,6 +75,8 @@ class AgentPool(BasePolicy):
         TODO do something
         """
         self.eps = eps
+        for p in self.policies:
+            p.set_eps(eps)
 
     def sample(self):
         """
