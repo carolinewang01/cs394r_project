@@ -130,6 +130,8 @@ if __name__ == '__main__':
             for trial_idx, seed in enumerate(SEEDS):
                 for opponent_algo in OPPONENT_LEARN_ALGO:
                     for algo in AGENT_LEARN_ALGO:
+
+                        if opponent_algo == "iqn":
                             for risk_type, eta_list in RISK_DISTORTION_DICT.items():
                                 for eta in eta_list:
                                     train_risk_aware(env_id=env_id,
@@ -138,6 +140,13 @@ if __name__ == '__main__':
                                                      opponent_resume_path=f"log/{env_id}/{opponent_algo}-vs-random_trial=0_eta={eta}_risk-distort={risk_type}/policy.pth",
                                                      eta=eta, risk_distortion=risk_type,
                                                      seed=seed, trial_idx=trial_idx)
+                        elif opponent_algo == "dqn": 
+                            train_risk_aware(env_id=env_id,
+                                             agent_learn_algo=algo,
+                                             opponent_learn_algo=opponent_algo,
+                                             opponent_resume_path=f"log/{env_id}/{opponent_algo}-vs-random_trial=0_eta=1.0_risk-distort=None/policy.pth",
+                                             eta=1.0, risk_distortion=None,# doesn't matter what this is
+                                             seed=seed, trial_idx=trial_idx)
 
     elif EXPT_NAME == "train_iqn_vs_dqn":
         OPPONENT_LEARN_ALGO = ["dqn"]
