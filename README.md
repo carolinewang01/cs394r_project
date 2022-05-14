@@ -7,8 +7,16 @@ conda activate cs394r
 ```
 
 ## Run paper experiments
+
+To run IQN/DQN with fixed opponents or simultaneuously updating
+Specify the experiment tag in the `run_iqn_expts.py`
 ```bash
 python run_iqn_expts.py
+```
+
+To run IQN self-play with diverse strategic opponents
+```
+python run_iqn_sp.py
 ```
 
 ## Visualize results
