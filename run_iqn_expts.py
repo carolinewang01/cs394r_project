@@ -1,5 +1,6 @@
 import pprint
 import time
+import numpy as np
 from datetime import timedelta
 
 def train_vs_random(env_id, agent_learn_algo, 
@@ -93,7 +94,7 @@ def train_iqn_iqn_indep(env_id,
 if __name__ == '__main__':
     SEEDS = [1626, 174, 571, 2948, 109284]
     ENV_IDS = ["leduc", 
-               #"texas",
+               "texas",
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     RISK_DISTORTION_DICT = { # possible eta values
@@ -151,9 +152,10 @@ if __name__ == '__main__':
     elif EXPT_NAME == "train_iqn_vs_dqn":
         OPPONENT_LEARN_ALGO = ["dqn"]
         AGENT_LEARN_ALGO = ["iqn"]
-        RISK_DISTORTION_DICT = {"pow":[-1.0,1.0]}
+        RISK_DISTORTION_DICT = {"pow":[-1.0,-0.5,-0.2,0,0.2,0.5,1.0]}
+        SEEDS=np.load('seeds.npy')
         for env_id in ENV_IDS:
-            for trial_idx, seed in enumerate(SEEDS):
+            for trial_idx, seed in enumerate(list(SEEDS)):
                 for opponent_algo in OPPONENT_LEARN_ALGO:
                     for algo in AGENT_LEARN_ALGO:
                             for risk_type, eta_list in RISK_DISTORTION_DICT.items():
@@ -163,14 +165,15 @@ if __name__ == '__main__':
                                                      opponent_learn_algo=opponent_algo,
                                                      opponent_resume_path=None,
                                                      eta=eta, risk_distortion=risk_type,
-                                                     seed=seed, trial_idx=trial_idx)
+                                                     seed=int(seed), trial_idx=trial_idx)
     elif EXPT_NAME == "train_iqn_vs_iqn":
         OPPONENT_LEARN_ALGO = ["iqn"]
         AGENT_LEARN_ALGO = ["iqn"]
+        SEEDS=np.load('seeds.npy')
         RISK_DISTORTION_DICT = {
-                "pow":[-0.2,0.2,-0.2, 0.2]}
+                "pow":[-0.2,-0.2,-0.2, 0.2, 0.2, 0.2,0.2,0.2,0.2,-0.2,-0.2,-0.2]}
         RISK_DISTORTION_DICT_OPPONENT = {
-                "pow":[1.0,-1.0,-0.5, 0.5]}
+                "pow":[ 1.0, 0.5, 0.2,-1.0,-0.5,-0.2,0.5,1.0,1.5,-0.5,-1.0,-1.5]}
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
                 for opponent_algo in OPPONENT_LEARN_ALGO:
@@ -184,7 +187,7 @@ if __name__ == '__main__':
                                                      opponent_learn_algo=opponent_algo,
                                                      opponent_resume_path=None,
                                                      eta=eta, opponent_eta=opponent_eta, risk_distortion=risk_type,
-                                                     seed=seed, trial_idx=trial_idx)
+                                                     seed=int(seed), trial_idx=trial_idx)
   
     end = time.time()
     elapsed = str(timedelta(seconds=end - start))

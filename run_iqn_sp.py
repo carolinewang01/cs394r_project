@@ -1,5 +1,6 @@
 import pprint
 import time
+import numpy as np
 from datetime import timedelta
 
 
@@ -50,12 +51,13 @@ def test_sp():
 
 if __name__ == '__main__':
     SEEDS = [1626, 174, 571, 2948, 109284]
+    SEEDS = np.load('seeds.npy')
     ENV_IDS = ["leduc", 
-               #"texas",
+               "texas",
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     
-    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
+    EXPT_NAME = "train_sp" #"train_sp_risk_aware" # "train_sp"
     RISK_AWARE = [True, False]
     ##################################################
     start = time.time()
@@ -67,7 +69,7 @@ if __name__ == '__main__':
                         train_sp(env_id=env_id, 
                                         agent_learn_algo="iqn",
                                         eta=1.0, risk_distortion=None,
-                                        seed=seed, trial_idx=trial_idx,
+                                        seed=int(seed), trial_idx=trial_idx,
                                         risk_aware=risk_aware)
     elif EXPT_NAME == "test_sp":
         test_sp()
