@@ -155,10 +155,8 @@ def get_agents(
             agent_opponent, optim = create_iqn_agent(args, eta=args.opponent_eta, risk_distortion=args.risk_distortion)
         elif args.opponent_learn_algo == "dqn":
             agent_opponent, optim = create_dqn_agent(args)
-        try:
+        if args.opponent_resume_path:
             agent_opponent.load_state_dict(torch.load(args.opponent_resume_path))
-        except:
-            pass
     # do not train the opponent agent
     agent_labels = env.agents # whether env agents are 0 or 1 indexed is not consistent across envs
     if args.agent_id == 1:

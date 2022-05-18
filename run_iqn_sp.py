@@ -43,7 +43,7 @@ def test_sp(
     args.env_id = env_id
     args.agent_learn_algo = agent_learn_algo
     args.agent_resume_path = agent_resume_path
-    args.opponent_algo = opponent_algo
+    args.opponent_learn_algo = opponent_algo
     args.opponent_resume_path = opponent_resume_path
     
     return watch(args)
@@ -57,7 +57,7 @@ if __name__ == '__main__':
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     
-    EXPT_NAME = "train_sp" #"train_sp_risk_aware" # "train_sp"
+    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
     RISK_AWARE = [True, False]
     ##################################################
     start = time.time()
@@ -69,6 +69,7 @@ if __name__ == '__main__':
             for trial_idx, seed in enumerate(SEEDS):
                 #if trial_idx<10:continue
                 for risk_aware in RISK_AWARE:
+                    if trial_idx<89:continue
                     '''
                     jobs.append(train_sp(env_id=env_id, 
                                         agent_learn_algo="iqn",
