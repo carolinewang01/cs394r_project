@@ -57,18 +57,18 @@ if __name__ == '__main__':
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     
-    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
+    EXPT_NAME = "train_sp" #"train_sp_risk_aware" # "train_sp"
     RISK_AWARE = [True, False]
     ##################################################
     start = time.time()
-    MAX_NUM_JOB=5 
+    MAX_NUM_JOB=3
     if EXPT_NAME == "train_sp":
         ray.init(logging_level=40, num_gpus=1)
         jobs=[]
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
                 for risk_aware in RISK_AWARE:
-                    if trial_idx<89:continue
+                    if trial_idx<96:continue
                     '''
                     jobs.append(train_sp(env_id=env_id, 
                                         agent_learn_algo="iqn",
@@ -83,6 +83,11 @@ if __name__ == '__main__':
                                         risk_aware=risk_aware))
                     if len(jobs)>=MAX_NUM_JOB:
                         ray.wait(jobs, num_returns=len(jobs))
+                        for job in jobs:
+                            ray.kill(job)
+                        del jobs
+                        jobs=[]
+                        time.sleep(10)
     elif EXPT_NAME == "test_sp":
             rews=[]
             winrates=[]
