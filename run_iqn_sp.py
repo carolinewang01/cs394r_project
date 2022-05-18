@@ -63,13 +63,13 @@ if __name__ == '__main__':
     start = time.time()
     MAX_NUM_JOB=20
     if EXPT_NAME == "train_sp":
-        ray.init(logging_level=40, num_gpus=1)
+        import logging
+        ray.init(logging_level=logging.INFO, num_gpus=1)
         jobs=[]
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
-                #if trial_idx<10:continue
+                if trial_idx<30:continue
                 for risk_aware in RISK_AWARE:
-                    if trial_idx<96:continue
                     '''
                     jobs.append(train_sp(env_id=env_id, 
                                         agent_learn_algo="iqn",
