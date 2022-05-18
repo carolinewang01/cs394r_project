@@ -1,3 +1,5 @@
+#!/scratch/cluster/clw4542/conda_envs/cs394r/bin/python
+
 import argparse
 import os
 from copy import deepcopy
@@ -25,7 +27,6 @@ from tianshou.utils import TensorboardLogger
 from make_agents import create_iqn_agent, create_dqn_agent
 from helpers import set_seed
 
-
 def get_env(env_id):
     if env_id == "leduc":
         env = PettingZooEnv(leduc_holdem_v4.env(num_players=2))
@@ -44,8 +45,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('--env-id', type=str, choices=["leduc", "tic-tac-toe", "texas"], default=None)
     parser.add_argument('--agent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
 
-    parser.add_argument('--eta', type=int, default=1.0, help='eta param of opponent IQN agent')
-    parser.add_argument('--risk-distortion', type=str, choices=["cvar", "wang", "pow", None], help='distortion type of opponent IQN agent')
+    parser.add_argument('--eta', type=float, default=1.0, help='eta param of opponent IQN agent')
+    parser.add_argument('--risk-distortion', choices=["cvar", "wang", "pow", None, "None"], help='distortion type of opponent IQN agent')
 
     ############################
     parser.add_argument('--seed', type=int, default=1626)
@@ -265,3 +266,8 @@ def watch(
     result = collector.collect(n_episode=1, render=args.render)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
+
+if __name__ == '__main__':
+    args = get_args()
+    result, agent = train_agent(args)
+

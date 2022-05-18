@@ -1,5 +1,5 @@
 import os
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import numpy as np
 import tensorflow as tf
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
@@ -17,6 +17,7 @@ def plot_single_exp(filelists,
     for it in summary_iterators:
         if it.Tags()['scalars'] == tags:
             valid_summary_iterators.append(it)
+    assert len(summary_iterators) == len(valid_summary_iterators)
   
     step = None
     out = defaultdict(list)
@@ -24,12 +25,17 @@ def plot_single_exp(filelists,
     for tag in ['test/reward']:#tags:
         data = []
         step = None
-        for it in valid_summary_iterators:
+        for i, it in enumerate(valid_summary_iterators):
             events = it.Scalars(tag)
-            data.append([e.value for e in events])
+            rewards = [e.value for e in events]
+            if len(rewards)< 100:
+                print("REWARDS SHAPE IS ", len(rewards), "FILENAME IS ", filelists[i])
+            data.append(rewards)
             step=[e.step for e in events]
+
         data=np.array(data)
         out[tag]=np.mean(data,axis=0)
+        print("DATA SHAPE IS ", data.shape)
         std[tag]=np.std(data,axis=0)
         plt.plot(step,out[tag], label=legend)
         plt.fill_between(step, out[tag]-std[tag], out[tag]+std[tag], alpha=0.3)
@@ -37,7 +43,8 @@ def plot_single_exp(filelists,
 
 def plot_train_vs_random_exps(filelists, env_id, risk_type, save=False, savepath=None):
     plt.figure(0)
-    for attr, files in filelists.items():
+    for attr in sorted(filelists):
+        files = filelists[attr]
         algos_names, eta, risk_distortion = attr.split("_")
         agent_algo = algos_names.split("-")[0]
         plot_single_exp(filelists=files, legend=f"{agent_algo}_eta={eta}")
@@ -54,7 +61,7 @@ def plot_train_vs_iqn_pool_exps(filelists, env_id, risk_type, save=False, savepa
     plt.figure(0)
 
     accum_filelists = {} # accumulate all files corresponding to same risk type
-    for attr, filelist in filelists.items():
+    for attr, filelist in filelists.items():        
         algos_names, eta, risk_distortion = attr.split("_")
         key = f"{algos_names}_{risk_distortion}"
         # if eta in ["0.4", "0.6", "0.8", "1.0"]:
@@ -64,7 +71,9 @@ def plot_train_vs_iqn_pool_exps(filelists, env_id, risk_type, save=False, savepa
             accum_filelists[key] = []
         accum_filelists[key] += filelist
 
-    for key, filelist in accum_filelists.items():
+    for key in sorted(accum_filelists):
+        print("PLOTTING KEY ", key)
+        filelist = accum_filelists[key]
         algos_names = key.split("_")[0]
         agent_algo, _, opponent_algo = algos_names.split("-")
         plot_single_exp(filelists=filelist, legend=agent_algo)
@@ -84,7 +93,7 @@ def aggregate(
         ):
     exp_path = f"./log/{env_id}/"
     expdirs=glob.glob(exp_path+'*')
-    filelists={}
+    filelists = {}
     for ed in expdirs:
         expconfig=ed.split('/')[-1].split('_')
         exp_tag=expconfig[0]

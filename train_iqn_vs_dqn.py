@@ -50,8 +50,8 @@ def get_parser() -> argparse.ArgumentParser:
         help='the path of opponent agent pth file '
         'for resuming from a pre-trained agent'
     )
-    parser.add_argument('--eta', type=int, default=1.0, help='eta param of opponent IQN agent')
-    parser.add_argument('--risk-distortion', type=str, choices=["cvar", "wang", "pow", None], help='distortion type of opponent IQN agent')
+    parser.add_argument('--eta', type=float, default=1.0, help='eta param of opponent IQN agent')
+    parser.add_argument('--risk-distortion', choices=["cvar", "wang", "pow", None, "None"], help='distortion type of opponent IQN agent')
 
     ######################
     parser.add_argument('--seed', type=int, default=1626)

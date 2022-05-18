@@ -1,3 +1,5 @@
+#!/scratch/cluster/clw4542/conda_envs/cs394r/bin/python
+
 import argparse
 import os
 from copy import deepcopy
@@ -22,6 +24,7 @@ from tianshou.policy import BasePolicy
 from policies import CustomMAPolicyManager
 from make_agents import create_iqn_agent, create_dqn_agent
 from helpers import set_seed
+
 
 def get_env(env_id):
     if env_id == "leduc":
@@ -50,8 +53,8 @@ def get_parser() -> argparse.ArgumentParser:
         help='the path of opponent agent pth file '
         'for resuming from a pre-trained agent'
     )
-    parser.add_argument('--eta', type=int, default=1.0, help='eta param of opponent IQN agent')
-    parser.add_argument('--risk-distortion', type=str, choices=["cvar", "wang", "pow", None], help='distortion type of opponent IQN agent')
+    parser.add_argument('--eta', type=float, default=1.0, help='eta param of opponent IQN agent')
+    parser.add_argument('--risk-distortion', choices=["cvar", "wang", "pow", None, "None"], help='distortion type of opponent IQN agent')
 
     ######################
     parser.add_argument('--seed', type=int, default=1626)
@@ -257,3 +260,7 @@ def watch(
     result = collector.collect(n_episode=1, render=args.render)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
+
+if __name__ == '__main__':
+    args = get_args()
+    result, agent = train_agent(args)
