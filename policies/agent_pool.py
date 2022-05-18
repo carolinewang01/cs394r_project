@@ -52,7 +52,7 @@ class AgentPool(BasePolicy):
             sampled_policy = self.policies[random.randint(0,len(self.policies)-1)]
             if self.risk_aware:
                 sampled_policy.model.risk_distortion="wang"
-                sampled_policy.model.eta = random.uniform(-0.2, 0.2) 
+                sampled_policy.model.eta = random.uniform(-0.75, 0.75) 
             return sampled_policy(batch, 
                                   state, 
                                   risk_aware=self.risk_aware,

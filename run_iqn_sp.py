@@ -28,25 +28,24 @@ def train_sp(env_id,
     result, agent = train_selfplay(args)
     pprint.pprint(result)
 
-def test_sp():
-    '''
-    env_id,
-            agent_learn_algo,
-            agent_resume_path,
-            opponent_algo,
-            opponent_resume_path,
+def test_sp(
+            env_id='leduc',
+            agent_learn_algo='iqn',
+            agent_resume_path=None,
+            opponent_algo='iqn',
+            opponent_resume_path=None,
             ):
-    '''
+    
     from train_iqn_sp import get_args, watch
     args = get_args()
-    '''
+    
     args.env_id = env_id
     args.agent_learn_algo = agent_learn_algo
     args.agent_resume_path = agent_resume_path
     args.opponent_algo = opponent_algo
     args.opponent_resume_path = opponent_resume_path
-    '''
-    watch(args)
+    
+    return watch(args)
 
 
 if __name__ == '__main__':
@@ -57,7 +56,7 @@ if __name__ == '__main__':
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     
-    EXPT_NAME = "train_sp" #"train_sp_risk_aware" # "train_sp"
+    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
     RISK_AWARE = [True, False]
     ##################################################
     start = time.time()
@@ -65,6 +64,7 @@ if __name__ == '__main__':
     if EXPT_NAME == "train_sp":
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
+                if trial_idx<46:continue
                 for risk_aware in RISK_AWARE:
                         train_sp(env_id=env_id, 
                                         agent_learn_algo="iqn",
@@ -72,7 +72,29 @@ if __name__ == '__main__':
                                         seed=int(seed), trial_idx=trial_idx,
                                         risk_aware=risk_aware)
     elif EXPT_NAME == "test_sp":
-        test_sp()
+            rews=[]
+            winrates=[]
+            wintierates=[]
+            for trial_idx, seed in enumerate(SEEDS):
+                rew, winrate, wintierate = None, None, None
+                try:
+                    agent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial={}_riskaware=True/9/policy.pth'.format(trial_idx)
+                    opponent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial={}_riskaware=False/9/policy.pth'.format(trial_idx)
+
+                    rew, winrate,wintierate = test_sp(
+                            agent_resume_path=agent_resume_path,
+                            opponent_resume_path=opponent_resume_path)
+                except:
+                    end = time.time()
+                    elapsed = str(timedelta(seconds=end - start))
+                    print("SCRIPT RUN TIME: ", elapsed)
+                    print('mean reward:',np.mean(rews), ' std:', np.std(rews), ' winrate:', np.mean(winrates)*100, ' wintie rate:', np.mean(wintierates)*100, ' num of seeds:', len(rews))
+                    break
+                if rew is not None:
+                    rews.append(rew)
+                    winrates.append(winrate)
+                    wintierates.append(wintierate)
+                print('mean reward:',np.mean(rews), ' std:', np.std(rews), ' winrate:', np.mean(winrates)*100, ' wintie rate:', np.mean(wintierates)*100, ' num of seeds:', len(rews))
     end = time.time()
     elapsed = str(timedelta(seconds=end - start))
     print("SCRIPT RUN TIME: ", elapsed)

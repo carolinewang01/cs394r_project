@@ -93,12 +93,12 @@ def get_parser() -> argparse.ArgumentParser:
         '--hidden-sizes', type=int, nargs='*', default=[64, 64]
     )
     parser.add_argument('--num-training-envs', type=int, default=10)
-    parser.add_argument('--num-test-envs', type=int, default=5)
-    parser.add_argument('--episode-per-test', type=int, default=50)
+    parser.add_argument('--num-test-envs', type=int, default=10)
+    parser.add_argument('--episode-per-test', type=int, default=100)
     parser.add_argument('--num-eval-episodes', type=int, default=1000)
 
     parser.add_argument('--logdir', type=str, default='log')
-    parser.add_argument('--render', type=float, default=0.1)
+    parser.add_argument('--render', type=float, default=0)
     parser.add_argument(
         '--win-rate',
         type=float,
@@ -142,8 +142,6 @@ def get_agents(
 
     args.state_shape = observation_space.shape or observation_space.n
     args.action_shape = env.action_space.shape or env.action_space.n
-    # while len(args.state_shape) < 3:
-        # args.state_shape += (1,)
 
     if agent_learn is None:
         if args.agent_learn_algo == "iqn":
@@ -285,7 +283,7 @@ def watch(
 ) -> None:
     env_fn = lambda: get_env(args.env_id)
 
-    env = DummyVectorEnv([env_fn])
+    env = SubprocVectorEnv([env_fn for _ in range(args.num_test_envs)])
     policy, optim, agents = get_agents(
         args, agent_learn=agent_learn, agent_opponent=agent_opponent
     )
@@ -297,3 +295,4 @@ def watch(
     result = collector.collect(n_episode=args.num_eval_episodes, render=args.render)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
+    return np.mean(rews[:,args.agent_id - 1]), np.mean(rews[:,args.agent_id - 1]>0), np.mean(rews[:,args.agent_id - 1]>=0)
