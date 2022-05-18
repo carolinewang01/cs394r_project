@@ -6,7 +6,7 @@ conda create -n ${CONDA_NAME} python=3.7 -y;
 conda activate ${CONDA_NAME};
 
 conda install cudatoolkit=10.1;
-conda install pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=10.1 -c pytorch;
+conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 pip install tianshou==0.4.7;
 pip install --upgrade open_spiel;
 pip install gym==0.19.0;
