@@ -19,3 +19,4 @@ pip install rlcard;
 pip install pygame;
 pip install seaborn;
 pip install jupyter;
+pip install ray;

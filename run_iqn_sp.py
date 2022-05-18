@@ -1,9 +1,10 @@
+import ray 
 import pprint
 import time
 import numpy as np
 from datetime import timedelta
 
-
+@ray.remote(num_gpus=1./20)
 def train_sp(env_id, 
                      agent_learn_algo, 
                      eta=1.0, risk_distortion=None,
@@ -51,26 +52,36 @@ def test_sp(
 if __name__ == '__main__':
     SEEDS = [1626, 174, 571, 2948, 109284]
     SEEDS = np.load('seeds.npy')
-    ENV_IDS = ["leduc", 
+    ENV_IDS = [#"leduc", 
                "texas",
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     
-    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
+    EXPT_NAME = "train_sp" #"train_sp_risk_aware" # "train_sp"
     RISK_AWARE = [True, False]
     ##################################################
     start = time.time()
-    
+    MAX_NUM_JOB=4 
     if EXPT_NAME == "train_sp":
+        ray.init(logging_level=40, num_gpus=1)
+        jobs=[]
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
-                if trial_idx<46:continue
                 for risk_aware in RISK_AWARE:
-                        train_sp(env_id=env_id, 
+                    '''
+                    jobs.append(train_sp(env_id=env_id, 
                                         agent_learn_algo="iqn",
                                         eta=1.0, risk_distortion=None,
                                         seed=int(seed), trial_idx=trial_idx,
-                                        risk_aware=risk_aware)
+                                        risk_aware=risk_aware).remote())
+                    '''
+                    jobs.append(train_sp.remote(env_id=env_id, 
+                                        agent_learn_algo="iqn",
+                                        eta=1.0, risk_distortion=None,
+                                        seed=int(seed), trial_idx=trial_idx,
+                                        risk_aware=risk_aware))
+                    if len(jobs)>=MAX_NUM_JOB:
+                        ray.wait(jobs, num_returns=len(jobs))
     elif EXPT_NAME == "test_sp":
             rews=[]
             winrates=[]
