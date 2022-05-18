@@ -1,5 +1,6 @@
 import pprint
 import time
+import glob
 import numpy as np
 from datetime import timedelta
 
@@ -17,7 +18,7 @@ def test_pool(
     args.env_id = env_id
     args.agent_learn_algo = agent_learn_algo
     args.agent_resume_path = agent_resume_path
-    args.opponent_algo = opponent_algo
+    args.opponent_learn_algo = opponent_algo
     args.opponent_resume_path = opponent_resume_path
     
     return watch(args)
@@ -31,13 +32,15 @@ if __name__ == '__main__':
     rews=[]
     winrates=[]
     wintierates=[]
-    agent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial=0_riskaware=True/9/policy.pth'.format(trial_idx)
-    opponents_pool_path = ''
+    agent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial=0_riskaware=False/9/policy.pth'
+    opponents_pool_path = 'log/leduc-pool/'
     rew, winrate, wintierate = None, None, None
-    for opponent in glob.glob(opponents_pool_path):
+    for opponent in glob.glob(opponents_pool_path+'iqn-vs-random_trial=*=pow'):
         opponent_resume_path = opponent+'/policy.pth'
-        try:                        
-            rew, winrate,wintierate = test_sp(
+        print('Main Agent:', agent_resume_path)
+        print('Opponent:',opponent_resume_path)
+        try:
+            rew, winrate,wintierate = test_pool(
                             agent_resume_path=agent_resume_path,
                             opponent_resume_path=opponent_resume_path)
         except:
@@ -50,6 +53,9 @@ if __name__ == '__main__':
             rews.append(rew)
             winrates.append(winrate)
             wintierates.append(wintierate)
+            end = time.time()
+            elapsed = str(timedelta(seconds=end - start))
+            print("SCRIPT RUN TIME: ", elapsed)
             print('mean reward:',np.mean(rews), ' std:', np.std(rews), ' winrate:', np.mean(winrates)*100, ' wintie rate:', np.mean(wintierates)*100, ' num of seeds:', len(rews))
     
     end = time.time()

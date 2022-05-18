@@ -43,7 +43,7 @@ def test_sp(
     args.env_id = env_id
     args.agent_learn_algo = agent_learn_algo
     args.agent_resume_path = agent_resume_path
-    args.opponent_algo = opponent_algo
+    args.opponent_learn_algo = opponent_algo
     args.opponent_resume_path = opponent_resume_path
     
     return watch(args)
@@ -52,22 +52,23 @@ def test_sp(
 if __name__ == '__main__':
     SEEDS = [1626, 174, 571, 2948, 109284]
     SEEDS = np.load('seeds.npy')
-    ENV_IDS = [#"leduc", 
-               "texas",
+    ENV_IDS = ["leduc", 
+               #"texas",
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     
-    EXPT_NAME = "train_sp" #"train_sp_risk_aware" # "train_sp"
+    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
     RISK_AWARE = [True, False]
     ##################################################
     start = time.time()
-    MAX_NUM_JOB=4 
+    MAX_NUM_JOB=5 
     if EXPT_NAME == "train_sp":
         ray.init(logging_level=40, num_gpus=1)
         jobs=[]
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
                 for risk_aware in RISK_AWARE:
+                    if trial_idx<89:continue
                     '''
                     jobs.append(train_sp(env_id=env_id, 
                                         agent_learn_algo="iqn",
