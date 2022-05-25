@@ -5,29 +5,40 @@ import numpy as np
 from datetime import timedelta
 
 @ray.remote(num_gpus=1./20)
-def train_sp(env_id, 
-                     agent_learn_algo, 
-                     eta=1.0, risk_distortion=None,
-                     seed=1626, trial_idx=0,
-                     risk_aware=False
+class Actor(object):
+    def __init__(self,
+                env_id, 
+                agent_learn_algo, 
+                eta=1.0, risk_distortion=None,
+                seed=1626, trial_idx=0,
+                risk_aware=False
     ):
-    '''train args.algo agent vs pre-trained iqn agent
+        self.env_id = env_id
+        self.agent_learn_algo = agent_learn_algo
+        self.eta = eta
+        self.risk_distortion=risk_distortion
+        self.seed = seed
+        self.trial_idx = trial_idx
+        self.risk_aware = risk_aware
 
-    Make sure to specify --agent-learn-algo, --eta, --risk-distortion, --opponent-resume-path
-    '''
-    from train_iqn_sp import get_args, train_agent, watch, train_selfplay
+    def train_sp(self):
+        '''train args.algo agent vs pre-trained iqn agent
 
-    args = get_args()
-    args.env_id = env_id
-    args.agent_learn_algo = agent_learn_algo
+        Make sure to specify --agent-learn-algo, --eta, --risk-distortion, --opponent-resume-path
+        '''
+        from train_iqn_sp import get_args, train_agent, watch, train_selfplay
 
-    args.eta = eta
-    args.risk_distortion = risk_distortion
-    args.seed = seed
-    args.trial_idx = trial_idx
-    args.risk_aware=risk_aware
-    result, agent = train_selfplay(args)
-    pprint.pprint(result)
+        args = get_args()
+        args.env_id = self.env_id
+        args.agent_learn_algo = self.agent_learn_algo
+
+        args.eta = self.eta
+        args.risk_distortion = self.risk_distortion
+        args.seed = self.seed
+        args.trial_idx = self.trial_idx
+        args.risk_aware = self.risk_aware
+        result, agent = train_selfplay(args)
+        pprint.pprint(result)
 
 def test_sp(
             env_id='leduc',
@@ -48,47 +59,48 @@ def test_sp(
     
     return watch(args)
 
-
-if __name__ == '__main__':
+def main():
     SEEDS = [1626, 174, 571, 2948, 109284]
     SEEDS = np.load('seeds.npy')
-    ENV_IDS = ["leduc", 
-               #"texas",
+    ENV_IDS = [ "leduc", 
+                #"texas",
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     
-    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
+    EXPT_NAME = "train_sp" #"train_sp_risk_aware" # "train_sp"
     RISK_AWARE = [True, False]
     ##################################################
     start = time.time()
-    MAX_NUM_JOB=5 
+    MAX_NUM_JOB=2
     if EXPT_NAME == "train_sp":
-        ray.init(logging_level=40, num_gpus=1)
-        jobs=[]
+        ray.init(logging_level=0, num_gpus=1, local_mode=False)
+        srs=[]
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
+                if trial_idx<99:continue
                 for risk_aware in RISK_AWARE:
-                    if trial_idx<89:continue
-                    '''
-                    jobs.append(train_sp(env_id=env_id, 
-                                        agent_learn_algo="iqn",
-                                        eta=1.0, risk_distortion=None,
-                                        seed=int(seed), trial_idx=trial_idx,
-                                        risk_aware=risk_aware).remote())
-                    '''
-                    jobs.append(train_sp.remote(env_id=env_id, 
+                    srs.append(Actor.remote(env_id=env_id, 
                                         agent_learn_algo="iqn",
                                         eta=1.0, risk_distortion=None,
                                         seed=int(seed), trial_idx=trial_idx,
                                         risk_aware=risk_aware))
-                    if len(jobs)>=MAX_NUM_JOB:
+
+                    if len(srs)>=MAX_NUM_JOB:
+                        jobs=[]
+                        for sr in srs:
+                            jobs.append(sr.train_sp.remote())
                         ray.wait(jobs, num_returns=len(jobs))
+                        for sr in srs:
+                            ray.kill(sr)
+                        del srs
+                        srs=[]
     elif EXPT_NAME == "test_sp":
             rews=[]
             winrates=[]
             wintierates=[]
             for trial_idx, seed in enumerate(SEEDS):
                 rew, winrate, wintierate = None, None, None
+                if trial_idx<80:continue
                 try:
                     agent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial={}_riskaware=True/9/policy.pth'.format(trial_idx)
                     opponent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial={}_riskaware=False/9/policy.pth'.format(trial_idx)
@@ -110,3 +122,9 @@ if __name__ == '__main__':
     end = time.time()
     elapsed = str(timedelta(seconds=end - start))
     print("SCRIPT RUN TIME: ", elapsed)
+
+
+
+if __name__ == '__main__':
+    import sys
+    sys.exit(main())
