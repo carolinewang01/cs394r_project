@@ -250,16 +250,19 @@ def watch(
 ) -> None:
     env_fn = lambda: get_env(args.env_id)
 
-    env = DummyVectorEnv([env_fn])
+    env = SubprocVectorEnv([env_fn for _ in range(args.num_test_envs)])
     policy, optim, agents = get_agents(
         args, agent_learn=agent_learn, agent_opponent=agent_opponent
     )
     policy.eval()
-    policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
+    #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
+    for i in range(2):
+        policy.policies[agents[i]].set_eps(0.0)
     collector = Collector(policy, env, exploration_noise=True)
-    result = collector.collect(n_episode=1, render=args.render)
+    result = collector.collect(n_episode=args.episode_per_test, render=False)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
+    return np.mean(rews[:,args.agent_id - 1]), np.mean(rews[:,args.agent_id - 1]>0), np.mean(rews[:,args.agent_id - 1]>=0)
 
 if __name__ == '__main__':
     args = get_args()

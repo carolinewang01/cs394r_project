@@ -112,7 +112,7 @@ def get_parser() -> argparse.ArgumentParser:
         'for resuming from a pre-trained agent'
     )
     parser.add_argument(
-        '--opponent-path',
+        '--opponent-resume-path',
         type=str,
         default='',
         help='the path of opponent agent pth file '
@@ -156,9 +156,9 @@ def get_agents(
             agent_learn.load_state_dict(torch.load(args.resume_path))
 
     if agent_opponent is None:
-        if args.opponent_path:
-            agent_opponent = deepcopy(agent_learn)
-            agent_opponent.load_state_dict(torch.load(args.opponent_path))
+        if args.opponent_resume_path:
+            agent_opponent, _ = create_iqn_agent(args, eta=args.eta, risk_distortion=args.risk_distortion) # deepcopy(agent_learn)
+            agent_opponent.load_state_dict(torch.load(args.opponent_resume_path))
         else:
             agent_opponent = RandomPolicy()
 
@@ -256,16 +256,37 @@ def watch(
     agent_opponent: Optional[BasePolicy] = None,
 ) -> None:
     env_fn = lambda: get_env(args.env_id)
-    env = DummyVectorEnv([env_fn])
+
+    env = SubprocVectorEnv([env_fn for _ in range(args.num_test_envs)])
     policy, optim, agents = get_agents(
         args, agent_learn=agent_learn, agent_opponent=agent_opponent
     )
     policy.eval()
-    policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
+    #policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
+    for i in range(2):
+        policy.policies[agents[i]].set_eps(0.0)
     collector = Collector(policy, env, exploration_noise=True)
-    result = collector.collect(n_episode=1, render=args.render)
+    result = collector.collect(n_episode=args.episode_per_test, render=False)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
+    return np.mean(rews[:,args.agent_id - 1]), np.mean(rews[:,args.agent_id - 1]>0), np.mean(rews[:,args.agent_id - 1]>=0)
+
+# def watch(
+#     args: argparse.Namespace = get_args(),
+#     agent_learn: Optional[BasePolicy] = None,
+#     agent_opponent: Optional[BasePolicy] = None,
+# ) -> None:
+#     env_fn = lambda: get_env(args.env_id)
+#     env = DummyVectorEnv([env_fn])
+#     policy, optim, agents = get_agents(
+#         args, agent_learn=agent_learn, agent_opponent=agent_opponent
+#     )
+#     policy.eval()
+#     policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
+#     collector = Collector(policy, env, exploration_noise=True)
+#     result = collector.collect(n_episode=1, render=args.render)
+#     rews, lens = result["rews"], result["lens"]
+#     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
 
 if __name__ == '__main__':
     args = get_args()
