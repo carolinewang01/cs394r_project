@@ -37,12 +37,16 @@ class CoinChoiceEnv(gym.Env):
     def render(self):
         pass
 
-
+gym.envs.register(
+        id="coinchoice-v0",
+        entry_point="envs.coin_choice:CoinChoiceEnv",
+        )
 
 if __name__ == "__main__":
-    env = CoinChoiceEnv()
+    #env = CoinChoiceEnv()
+    env=gym.make("coinchoice-v0")
     obs, done, info = env.reset()
-    for i in range(100):
+    for i in range(10):
         action = random.choice([0,1])
         obs, reward, done, info = env.step(action)
         print("Coin: ", action, " Reward:",reward)
