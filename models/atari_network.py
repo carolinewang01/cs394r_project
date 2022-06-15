@@ -75,6 +75,7 @@ class MLP(nn.Module):
     ) -> None:
         super().__init__()
         self.device = device
+        
         self.net = nn.Sequential(
             nn.Flatten(),
             nn.Linear(c*h*w, 128), nn.ReLU(inplace=True),
@@ -99,6 +100,10 @@ class MLP(nn.Module):
     ) -> Tuple[torch.Tensor, Any]:
         r"""Mapping: x -> Q(x, \*)."""
         x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
+        try:
+            self.net(x)
+        except:
+            from IPython import embed; embed()
         return self.net(x), state
 
 class C51(DQN):

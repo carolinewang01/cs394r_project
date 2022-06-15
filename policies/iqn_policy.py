@@ -48,17 +48,20 @@ class RiskAwareIQNPolicy(IQNPolicy):
         model = getattr(self, model)
         obs = batch[input]
         obs_next = obs.obs if hasattr(obs, "obs") else obs
-        (logits, taus, old_logits), hidden = model(
+        #(logits, taus, old_logits), hidden = model(
+        #    obs_next, sample_size=sample_size, state=state, info=batch.info
+        #)
+        (logits, taus), hidden = model(
             obs_next, sample_size=sample_size, state=state, info=batch.info
         )
 
         q = self.compute_q_value(logits, getattr(obs, "mask", None))
-        old_q = self.compute_q_value(old_logits, getattr(obs, "mask", None))
+        #old_q = self.compute_q_value(old_logits, getattr(obs, "mask", None))
 
         if not hasattr(self, "max_action_num"):
             self.max_action_num = q.shape[1]
         act = to_numpy(q.max(dim=1)[1])
-        old_act = to_numpy(old_q.max(dim=1)[1])
+        #old_act = to_numpy(old_q.max(dim=1)[1])
         # print("N ACTIONS ARE ", q.shape[1])
         # print("OBS SHAPE IS ", obs.shape)
         # print("ACTION MASK IS ", getattr(obs[0], "mask", None))
