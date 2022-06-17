@@ -56,6 +56,7 @@ class RiskAwareIQNPolicy(IQNPolicy):
         )
 
         q = self.compute_q_value(logits, getattr(obs, "mask", None))
+        #from IPython import embed; embed()
         #old_q = self.compute_q_value(old_logits, getattr(obs, "mask", None))
 
         if not hasattr(self, "max_action_num"):

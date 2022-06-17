@@ -15,7 +15,7 @@ class CoinChoiceEnv(gym.Env):
         reward = self.calReward(action)
         obs = np.random.uniform(-1,1,(2,)) # TODO: Can I put 0s here?
         done = True
-        print("action chosen:",action, " reward:",reward)
+        #print("action chosen:",action, " reward:",reward)
         return obs, reward, done, {}
 
     def calReward(self, action):
