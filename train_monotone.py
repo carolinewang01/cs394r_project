@@ -8,18 +8,21 @@ from torch.utils.tensorboard import SummaryWriter
 
 from tianshou.data import Collector, VectorReplayBuffer
 from tianshou.env import ShmemVectorEnv
-from tianshou.policy import IQNPolicy
+# from tianshou.policy import IQNPolicy
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger
-from tianshou.utils.net.discrete import ImplicitQuantileNetwork
+# from tianshou.utils.net.discrete import ImplicitQuantileNetwork
 
-from atari.atari_network import DQN
+# ours
 from atari.atari_wrapper import wrap_deepmind
+from make_agents import create_monotone_iqn_agent, create_dqn_agent
+from helpers import set_seed
 
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, default='PongNoFrameskip-v4')
+    parser.add_argument('--env-id', type=str, default='PongNoFrameskip-v4')
+    parser.add_argument('--expt-name', type=str, default='monotone_iqn')
     parser.add_argument('--seed', type=int, default=1234)
     parser.add_argument('--eps-test', type=float, default=0.005)
     parser.add_argument('--eps-train', type=float, default=1.)
@@ -59,12 +62,12 @@ def get_args():
 
 
 def make_atari_env(args):
-    return wrap_deepmind(args.task, frame_stack=args.frames_stack)
+    return wrap_deepmind(args.env_id, frame_stack=args.frames_stack)
 
 
 def make_atari_env_watch(args):
     return wrap_deepmind(
-        args.task,
+        args.env_id,
         frame_stack=args.frames_stack,
         episode_life=False,
         clip_rewards=False
@@ -86,33 +89,32 @@ def test_iqn(args=get_args()):
         [lambda: make_atari_env_watch(args) for _ in range(args.test_num)]
     )
     # seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    train_envs.seed(args.seed)
-    test_envs.seed(args.seed)
+    set_seed(args.seed, envs=[train_envs, test_envs])
+
     # define model
-    feature_net = DQN(
-        *args.state_shape, args.action_shape, args.device, features_only=True
-    )
-    net = ImplicitQuantileNetwork(
-        feature_net,
-        args.action_shape,
-        args.hidden_sizes,
-        num_cosines=args.num_cosines,
-        device=args.device
-    ).to(args.device)
-    optim = torch.optim.Adam(net.parameters(), lr=args.lr)
-    # define policy
-    policy = IQNPolicy(
-        net,
-        optim,
-        args.gamma,
-        args.sample_size,
-        args.online_sample_size,
-        args.target_sample_size,
-        args.n_step,
-        target_update_freq=args.target_update_freq
-    ).to(args.device)
+    policy, optim = create_monotone_iqn_agent(args)
+    # feature_net = DQN(
+    #     *args.state_shape, args.action_shape, args.device, features_only=True
+    # )
+    # net = ImplicitQuantileNetwork(
+    #     feature_net,
+    #     args.action_shape,
+    #     args.hidden_sizes,
+    #     num_cosines=args.num_cosines,
+    #     device=args.device
+    # ).to(args.device)
+    # optim = torch.optim.Adam(net.parameters(), lr=args.lr)
+    # # define policy
+    # policy = IQNPolicy(
+    #     net,
+    #     optim,
+    #     args.gamma,
+    #     args.sample_size,
+    #     args.online_sample_size,
+    #     args.target_sample_size,
+    #     args.n_step,
+    #     target_update_freq=args.target_update_freq
+    # ).to(args.device)
     # load a previous policy
     if args.resume_path:
         policy.load_state_dict(torch.load(args.resume_path, map_location=args.device))
@@ -130,18 +132,19 @@ def test_iqn(args=get_args()):
     train_collector = Collector(policy, train_envs, buffer, exploration_noise=True)
     test_collector = Collector(policy, test_envs, exploration_noise=True)
     # log
-    log_path = os.path.join(args.logdir, args.task, 'iqn')
+    log_path = os.path.join(args.logdir, args.env_id, 'monotone_iqn', args.expt_name)
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
 
     def save_fn(policy):
-        torch.save(policy.state_dict(), os.path.join(log_path, 'policy.pth'))
+        model_save_path = os.path.join(args.logdir, args.env_id, "monotone_iqn", "policy.pth")
+        torch.save(policy.state_dict(), model_save_path)
 
     def stop_fn(mean_rewards):
         if env.spec.reward_threshold:
             return mean_rewards >= env.spec.reward_threshold
-        elif 'Pong' in args.task:
+        elif 'Pong' in args.env_id:
             return mean_rewards >= 20
         else:
             return False
