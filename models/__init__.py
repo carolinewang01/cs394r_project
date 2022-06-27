@@ -1,2 +1,2 @@
 from .iqn import RiskAwareIQN
-from .atari_network import DQN, MLP
+from .monotone_iqn import MonotoneIQN

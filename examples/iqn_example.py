@@ -4,8 +4,6 @@ import pprint
 
 import numpy as np
 import torch
-from atari_network import DQN
-from atari_wrapper import wrap_deepmind
 from torch.utils.tensorboard import SummaryWriter
 
 from tianshou.data import Collector, VectorReplayBuffer
@@ -14,6 +12,9 @@ from tianshou.policy import IQNPolicy
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger
 from tianshou.utils.net.discrete import ImplicitQuantileNetwork
+
+from atari.atari_network import DQN
+from atari.atari_wrapper import wrap_deepmind
 
 
 def get_args():
@@ -37,7 +38,7 @@ def get_args():
     parser.add_argument('--step-per-epoch', type=int, default=100000)
     parser.add_argument('--step-per-collect', type=int, default=10)
     parser.add_argument('--update-per-step', type=float, default=0.1)
-    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--training-num', type=int, default=10)
     parser.add_argument('--test-num', type=int, default=10)
     parser.add_argument('--logdir', type=str, default='log')
