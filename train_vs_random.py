@@ -24,8 +24,10 @@ from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger
 
 # ours
+from envs.simple_bet import SimpleBetEnv
 from make_agents import create_iqn_agent, create_dqn_agent
 from helpers import set_seed
+
 
 def get_env(env_id):
     if env_id == "leduc":
@@ -36,17 +38,24 @@ def get_env(env_id):
         env = PettingZooEnv(texas_holdem_v4.env(num_players=2))
     elif env_id == "texas-no-limit":
         env = PettingZooEnv(texas_holdem_no_limit_v6.env(num_players=2))
-    else: 
+    elif env_id == "simple-bet":
+        env = SimpleBetEnv()
+    else:
         raise Exception(f"Env name {env_id} not valid.")
     return env
 
+
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env-id', type=str, choices=["leduc", "tic-tac-toe", "texas"], default=None)
-    parser.add_argument('--agent-learn-algo', type=str, choices=["dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
+    parser.add_argument(
+        '--env-id', type=str, choices=["leduc", "tic-tac-toe", "texas", "simple-bet"], default=None)
+    parser.add_argument('--agent-learn-algo', type=str, choices=[
+                        "dqn", "iqn"], default=None, help='algorithm for the agent to learn with')
 
-    parser.add_argument('--eta', type=float, default=1.0, help='eta param of opponent IQN agent')
-    parser.add_argument('--risk-distortion', choices=["cvar", "wang", "pow", None, "None"], help='distortion type of opponent IQN agent')
+    parser.add_argument('--eta', type=float, default=1.0,
+                        help='eta param of opponent IQN agent')
+    parser.add_argument('--risk-distortion', choices=[
+                        "cvar", "wang", "pow", None, "None"], help='distortion type of opponent IQN agent')
 
     ############################
     parser.add_argument('--seed', type=int, default=1626)
@@ -68,15 +77,17 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
 
-
     # usual RL args
     parser.add_argument('--epoch', type=int, default=100)
-    parser.add_argument('--step-per-epoch', type=int, default=1000) # number transitions collected per epoch
-    parser.add_argument('--step-per-collect', type=int, default=100) # number transitions per call of collector.collect()
-    parser.add_argument('--update-per-step', type=float, default=0.1) # policy will be updated update-per-step*step-per-collect times per call of collector.collect()
+    # number transitions collected per epoch
+    parser.add_argument('--step-per-epoch', type=int, default=1000)
+    # number transitions per call of collector.collect()
+    parser.add_argument('--step-per-collect', type=int, default=100)
+    # policy will be updated update-per-step*step-per-collect times per call of collector.collect()
+    parser.add_argument('--update-per-step', type=float, default=0.1)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument(
-        '--hidden-sizes', type=int, nargs='*', default=[64, 64] 
+        '--hidden-sizes', type=int, nargs='*', default=[64, 64]
     )
     parser.add_argument('--num-training-envs', type=int, default=10)
     parser.add_argument('--num-test-envs', type=int, default=5)
@@ -143,12 +154,13 @@ def get_agents(
     args.state_shape = observation_space.shape or observation_space.n
     args.action_shape = env.action_space.shape or env.action_space.n
     # while len(args.state_shape) < 3:
-        # args.state_shape += (1,)
+    # args.state_shape += (1,)
 
     if agent_learn is None:
         # define model
         if args.agent_learn_algo == "iqn":
-            agent_learn, optim = create_iqn_agent(args, eta=args.eta, risk_distortion=args.risk_distortion)
+            agent_learn, optim = create_iqn_agent(
+                args, eta=args.eta, risk_distortion=args.risk_distortion)
         elif args.agent_learn_algo == "dqn":
             agent_learn, optim = create_dqn_agent(args)
 
@@ -157,8 +169,10 @@ def get_agents(
 
     if agent_opponent is None:
         if args.opponent_resume_path:
-            agent_opponent, _ = create_iqn_agent(args, eta=args.eta, risk_distortion=args.risk_distortion) # deepcopy(agent_learn)
-            agent_opponent.load_state_dict(torch.load(args.opponent_resume_path))
+            agent_opponent, _ = create_iqn_agent(
+                args, eta=args.eta, risk_distortion=args.risk_distortion)  # deepcopy(agent_learn)
+            agent_opponent.load_state_dict(
+                torch.load(args.opponent_resume_path))
         else:
             agent_opponent = RandomPolicy()
 
@@ -177,8 +191,9 @@ def train_agent(
     optim: Optional[torch.optim.Optimizer] = None,
 ) -> Tuple[dict, BasePolicy]:
 
-    env_fn = lambda: get_env(args.env_id)
-    train_envs = SubprocVectorEnv([env_fn for _ in range(args.num_training_envs)])
+    def env_fn(): return get_env(args.env_id)
+    train_envs = SubprocVectorEnv(
+        [env_fn for _ in range(args.num_training_envs)])
     test_envs = SubprocVectorEnv([env_fn for _ in range(args.num_test_envs)])
 
     set_seed(args.seed, envs=[train_envs, test_envs])
@@ -199,7 +214,8 @@ def train_agent(
     train_collector.collect(n_step=args.batch_size * args.num_training_envs)
     # log
 
-    log_path = os.path.join(args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-random_trial={args.trial_idx}_eta={args.eta}_risk-distort={args.risk_distortion}')
+    log_path = os.path.join(args.logdir, args.env_id,
+                            f'{args.agent_learn_algo}-vs-random_trial={args.trial_idx}_eta={args.eta}_risk-distort={args.risk_distortion}')
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
     logger = TensorboardLogger(writer)
@@ -212,11 +228,12 @@ def train_agent(
                 args.logdir, args.env_id, f'{args.agent_learn_algo}-vs-random_trial={args.trial_idx}_eta={args.eta}_risk-distort={args.risk_distortion}', 'policy.pth'
             )
         torch.save(
-            policy.policies[agents[args.agent_id - 1]].state_dict(), model_save_path
+            policy.policies[agents[args.agent_id - 1]
+                            ].state_dict(), model_save_path
         )
 
     def stop_fn(mean_rewards):
-        return None # mean_rewards >= args.win_rate
+        return None  # mean_rewards >= args.win_rate
 
     def train_fn(epoch, env_step):
         policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_train)
@@ -255,7 +272,7 @@ def watch(
     agent_learn: Optional[BasePolicy] = None,
     agent_opponent: Optional[BasePolicy] = None,
 ) -> None:
-    env_fn = lambda: get_env(args.env_id)
+    def env_fn(): return get_env(args.env_id)
 
     env = SubprocVectorEnv([env_fn for _ in range(args.num_test_envs)])
     policy, optim, agents = get_agents(
@@ -268,8 +285,9 @@ def watch(
     collector = Collector(policy, env, exploration_noise=True)
     result = collector.collect(n_episode=args.episode_per_test, render=False)
     rews, lens = result["rews"], result["lens"]
-    print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
-    return np.mean(rews[:,args.agent_id - 1]), np.mean(rews[:,args.agent_id - 1]>0), np.mean(rews[:,args.agent_id - 1]>=0)
+    print(
+        f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
+    return np.mean(rews[:, args.agent_id - 1]), np.mean(rews[:, args.agent_id - 1] > 0), np.mean(rews[:, args.agent_id - 1] >= 0)
 
 # def watch(
 #     args: argparse.Namespace = get_args(),
@@ -288,7 +306,7 @@ def watch(
 #     rews, lens = result["rews"], result["lens"]
 #     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
 
+
 if __name__ == '__main__':
     args = get_args()
     result, agent = train_agent(args)
-
