@@ -10,9 +10,11 @@ import json
 @ray.remote(num_gpus=1./20)
 class Actor(object):
     def __init__(self,
+                env_id,
                 log_dir,
                 agent_resume_path,
                 opponents_pool_path):
+        self.env_id = env_id
         self.log_dir = log_dir
         self.agent_resume_path = agent_resume_path
         self.opponents_pool_path = opponents_pool_path
@@ -29,12 +31,13 @@ class Actor(object):
             rews=[]
             winrates=[]
             wintierates=[]
-            for opponent in glob.glob(self.opponents_pool_path+'iqn-vs-random_trial=[0-3][0-9]*=pow'):
+            for opponent in glob.glob(self.opponents_pool_path+'iqn-vs-random_trial=[0-9][0-9]*=pow'):
                 opponent_resume_path = opponent+'/policy.pth'
                 print('Main Agent:', self.agent_resume_path)
                 print('Opponent:',opponent_resume_path)
                 try:
                     rew, winrate,wintierate = test_pool(
+                            env_id=self.env_id,
                             agent_resume_path=self.agent_resume_path,
                             opponent_resume_path=opponent_resume_path)
                 except:
@@ -67,7 +70,7 @@ class Actor(object):
 
 
 def test_pool(
-            env_id='leduc',
+            env_id,
             agent_learn_algo='iqn',
             agent_resume_path=None,
             opponent_algo='iqn',
@@ -91,23 +94,24 @@ if __name__ == '__main__':
     ENV_IDS = ["leduc", 
                "texas",
                ]
+    env_id = "texas"
     start = time.time()
-    opponents_pool_path = 'log/leduc-pool/'
+    opponents_pool_path = 'log/{}-pool/'.format(env_id)
     rew, winrate, wintierate = None, None, None
     results = {} 
     aggr_results = {}
-    log_dir = 'evaluate_results'
+    log_dir = 'evaluate_results_{}'.format(env_id)
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
     RISK_AWARE = [True, False]
     ray.init(num_gpus=1,local_mode=False)
-    MAX_NUM_JOB=6
+    MAX_NUM_JOB=20
     srs=[]
     for trial_idx, seed  in enumerate(SEEDS):
-        if trial_idx < 80:continue
         for risk_aware in RISK_AWARE:
-            agent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial={}_riskaware={}/9/policy.pth'.format(trial_idx,risk_aware)
-            srs.append(Actor.remote(log_dir,
+            agent_resume_path = 'log/selfplay/{}/iqn-selfplay_trial={}_riskaware={}/9/policy.pth'.format(env_id,trial_idx,risk_aware)
+            srs.append(Actor.remote(env_id,
+                                    log_dir,
                                     agent_resume_path,
                                     opponents_pool_path))
             if len(srs)>=MAX_NUM_JOB:

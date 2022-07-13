@@ -9,55 +9,33 @@ class Actor(object):
     def __init__(self,
                 env_id, 
                 agent_learn_algo, 
-                eta=1.0, risk_distortion=None,
+                opponent_learn_algo,
+                eta=1.0, opponent_eta=1.0, risk_distortion=None,
                 seed=1626, trial_idx=0,
-                risk_aware=False
     ):
         self.env_id = env_id
         self.agent_learn_algo = agent_learn_algo
+        self.opponent_learn_algo = opponent_learn_algo
         self.eta = eta
+        self.opponent_eta = opponent_eta
         self.risk_distortion=risk_distortion
-        self.seed = seed
+        self.seed = int(seed)
         self.trial_idx = trial_idx
-        self.risk_aware = risk_aware
 
-    def train_sp(self):
-        '''train args.algo agent vs pre-trained iqn agent
-
-        Make sure to specify --agent-learn-algo, --eta, --risk-distortion, --opponent-resume-path
-        '''
-        from train_iqn_sp import get_args, train_agent, watch, train_selfplay
-
+    def train_iqn_iqn_indep(self): 
+        from train_iqn_vs_iqn import get_args, train_agent, watch
         args = get_args()
         args.env_id = self.env_id
         args.agent_learn_algo = self.agent_learn_algo
-
+        args.opponent_learn_algo = self.opponent_learn_algo
         args.eta = self.eta
+        args.opponent_eta = self.opponent_eta
         args.risk_distortion = self.risk_distortion
         args.seed = self.seed
         args.trial_idx = self.trial_idx
-        args.risk_aware = self.risk_aware
-        result, agent = train_selfplay(args)
-        pprint.pprint(result)
 
-def test_sp(
-            env_id='leduc',
-            agent_learn_algo='iqn',
-            agent_resume_path=None,
-            opponent_algo='iqn',
-            opponent_resume_path=None,
-            ):
-    
-    from train_iqn_sp import get_args, watch
-    args = get_args()
-    
-    args.env_id = env_id
-    args.agent_learn_algo = agent_learn_algo
-    args.agent_resume_path = agent_resume_path
-    args.opponent_learn_algo = opponent_algo
-    args.opponent_resume_path = opponent_resume_path
-    
-    return watch(args)
+        result, agent = train_agent(args)
+        pprint.pprint(result)
 
 def main():
     SEEDS = [1626, 174, 571, 2948, 109284]
@@ -66,46 +44,54 @@ def main():
                 "texas",
                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
-    
-    EXPT_NAME = "test_sp" #"train_sp_risk_aware" # "train_sp"
-    RISK_AWARE = [True, False]
+ 
+    EXPT_NAME = "train_iqn_vs_iqn" #"train_sp_risk_aware" # "train_sp"
+    SEEDS=np.load('seeds.npy')
+    RISK_DISTORTION_DICT = {
+        "pow":[-0.2,-0.2,-0.2, 0.2, 0.2, 0.2,0.2,0.2,0.2,-0.2,-0.2,-0.2]}
+    RISK_DISTORTION_DICT_OPPONENT = {
+        "pow":[ 1.0, 0.5, 0.2,-1.0,-0.5,-0.2,0.5,1.0,1.5,-0.5,-1.0,-1.5]}
     ##################################################
     start = time.time()
     MAX_NUM_JOB=20
-    if EXPT_NAME == "train_sp":
+    if EXPT_NAME == "train_iqn_vs_iqn":
         ray.init(logging_level=0, num_gpus=1, local_mode=False)
         srs=[]
         for env_id in ENV_IDS:
             for trial_idx, seed in enumerate(SEEDS):
-                for risk_aware in RISK_AWARE:
-                    srs.append(Actor.remote(env_id=env_id, 
+                if trial_idx < 24: continue
+                for risk_type, eta_list in RISK_DISTORTION_DICT.items():
+                    for i in range(len(eta_list)):
+                        eta=eta_list[i]
+                        opponent_eta=RISK_DISTORTION_DICT_OPPONENT[risk_type][i]
+    
+                        srs.append(Actor.remote(env_id=env_id, 
                                         agent_learn_algo="iqn",
-                                        eta=1.0, risk_distortion=None,
+                                        opponent_learn_algo="iqn",
+                                        eta=eta, opponent_eta=opponent_eta, risk_distortion=risk_type,
                                         seed=int(seed), trial_idx=trial_idx,
-                                        risk_aware=risk_aware))
+                                        ))
 
-                    if len(srs)>=MAX_NUM_JOB:
-                        jobs=[]
-                        for sr in srs:
-                            jobs.append(sr.train_sp.remote())
-                        ray.wait(jobs, num_returns=len(jobs))
-                        for sr in srs:
-                            ray.kill(sr)
-                        del srs
-                        srs=[]
+                        if len(srs)>=MAX_NUM_JOB:
+                            jobs=[]
+                            for sr in srs:
+                                jobs.append(sr.train_iqn_iqn_indep.remote())
+                            ray.wait(jobs, num_returns=len(jobs))
+                            for sr in srs:
+                                ray.kill(sr)
+                            del srs
+                            srs=[]
     elif EXPT_NAME == "test_sp":
             rews=[]
             winrates=[]
             wintierates=[]
-            env_id = "texas"
             for trial_idx, seed in enumerate(SEEDS):
                 rew, winrate, wintierate = None, None, None
                 try:
-                    agent_resume_path = 'log/selfplay/{}/iqn-selfplay_trial={}_riskaware=True/9/policy.pth'.format(env_id,trial_idx)
-                    opponent_resume_path = 'log/selfplay/{}/iqn-selfplay_trial={}_riskaware=False/9/policy.pth'.format(env_id,trial_idx)
+                    agent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial={}_riskaware=True/9/policy.pth'.format(trial_idx)
+                    opponent_resume_path = 'log/selfplay/leduc/iqn-selfplay_trial={}_riskaware=False/9/policy.pth'.format(trial_idx)
 
                     rew, winrate,wintierate = test_sp(
-                            env_id = env_id,
                             agent_resume_path=agent_resume_path,
                             opponent_resume_path=opponent_resume_path)
                 except:

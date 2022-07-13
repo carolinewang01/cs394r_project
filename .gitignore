@@ -2,4 +2,4 @@ log/*
 figures/*
 experiments/*
 *__pycache__*
-evaluate_results/*
+evaluate_results*

@@ -2,6 +2,7 @@ import pprint
 import time
 import numpy as np
 from datetime import timedelta
+import ray
 
 def train_vs_random(env_id, agent_learn_algo, 
                     eta=1.0, risk_distortion=None,

@@ -1,8 +1,9 @@
 import glob
 import json
 import numpy as np
-def main():
-    log_dir='./evaluate_results/'
+def main(
+        log_dir='./evaluate_results/'
+        ):
     fs=glob.glob(log_dir+'/*')
     results={}
     aggr_results={}
@@ -31,4 +32,8 @@ def main():
 
 
 if __name__=='__main__':
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--log_dir', type=str)
+    args = parser.parse_args()
+    main(log_dir=args.log_dir)
