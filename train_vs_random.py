@@ -97,6 +97,13 @@ def get_parser() -> argparse.ArgumentParser:
         'watch the play of pre-trained models'
     )
     parser.add_argument(
+        '--n-eval-episode',
+        type=int,
+        default=100,
+        help='how many evaluation episodes'
+    )
+
+    parser.add_argument(
         '--agent-id',
         type=int,
         default=2,
@@ -262,6 +269,14 @@ def watch(
     policy.eval()
     policy.policies[agents[args.agent_id - 1]].set_eps(args.eps_test)
     collector = Collector(policy, env, exploration_noise=True)
-    result = collector.collect(n_episode=1, render=args.render)
+    result = collector.collect(n_episode=args.n_eval_episode, render=args.render)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, args.agent_id - 1].mean()}, length: {lens.mean()}")
+
+
+if __name__ == "__main__":
+    args = get_args()
+    if args.watch:
+        result = watch(args)
+    else:
+        result = train(args)

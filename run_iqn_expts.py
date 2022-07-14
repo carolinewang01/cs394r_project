@@ -18,8 +18,11 @@ def train_vs_random(env_id, agent_learn_algo,
     args.risk_distortion = risk_distortion
     args.seed = seed
     args.trial_idx = trial_idx
-
-    result, agent = train_agent(args)
+    
+    if args.watch:
+        result=watch(args)
+    else:
+        result, agent = train_agent(args)
     pprint.pprint(result)
 
 def train_risk_aware(env_id, 
@@ -95,16 +98,16 @@ def train_iqn_iqn_indep(env_id,
 if __name__ == '__main__':
     SEEDS = [1626, 174, 571, 2948, 109284]
     ENV_IDS = ["leduc", 
-               "texas",
-               # "texas-no-limit" # order of agents fixed, need to fix this
+                #"texas",
+                # "texas-no-limit" # order of agents fixed, need to fix this
                ]
     RISK_DISTORTION_DICT = { # possible eta values
-        "cvar": [0.2, 0.4, 0.6, 0.8, 1.0],
-        "wang": [-0.75, -0.25, 0.25, 0.75], # positive corresponds to risk seeking, negative to risk averse
-        "pow": [-2.5, -1.5, 1.5, 2.5] # positive corresponds to risk seeking, negative to risk averse
+            #"cvar": [0.2, 0.4, 0.6, 0.8, 1.0],
+            #"wang": [-0.75, -0.25, 0.25, 0.75], # positive corresponds to risk seeking, negative to risk averse
+        "pow": [-2.5, -1.5, 0, 1.5, 2.5] # positive corresponds to risk seeking, negative to risk averse
     }
     
-    EXPT_NAME = "train_iqn_vs_iqn" #"train_vs_risk_aware" # "train_vs_random"
+    EXPT_NAME = "train_vs_random" #"train_iqn_vs_iqn" #"train_vs_risk_aware" # "train_vs_random"
     ##################################################
     start = time.time()
 
